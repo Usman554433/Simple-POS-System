@@ -136,11 +136,52 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const updateSaleItem = (productId, field, value) => {
-    setSaleItems(
-      saleItems.map((item) =>
-        item.ProductId === productId ? { ...item, [field]: Number.parseFloat(value) || 0 } : item,
-      ),
-    )
+    let processedValue = Number.parseFloat(value) || 0
+
+    // Validation logic
+    if (field === "Quantity") {
+      // Quantity must be at least 1 and cannot be negative
+      if (processedValue < 1) {
+        processedValue = 1
+        Swal.fire({
+          title: "Invalid Quantity!",
+          text: "Quantity can't be negative. Minimum is 1.",
+          icon: "warning",
+          confirmButtonColor: "#8b5cf6",
+          timer: 2000,
+          showConfirmButton: false,
+        })
+      }
+      // Round to nearest integer for quantity
+      processedValue = Math.round(processedValue)
+    } else if (field === "Discount") {
+      // Discount cannot be negative or more than 100%
+      if (processedValue < 0) {
+        processedValue = 0
+        Swal.fire({
+          title: "Invalid Discount!",
+          text: "Discount cannot be negative",
+          icon: "warning",
+          confirmButtonColor: "#8b5cf6",
+          timer: 2000,
+          showConfirmButton: false,
+        })
+      } else if (processedValue > 100) {
+        processedValue = 100
+        Swal.fire({
+          title: "Invalid Discount!",
+          text: "Discount cannot exceed 100%",
+          icon: "warning",
+          confirmButtonColor: "#8b5cf6",
+          timer: 2000,
+          showConfirmButton: false,
+        })
+      }
+      // Round to 2 decimal places for discount
+      processedValue = Math.round(processedValue * 100) / 100
+    }
+
+    setSaleItems(saleItems.map((item) => (item.ProductId === productId ? { ...item, [field]: processedValue } : item)))
   }
 
   const removeSaleItem = (productId) => {
@@ -148,12 +189,66 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const calculateAmount = (item) => {
-    const discountAmount = (item.RetailPrice * item.Quantity * item.Discount) / 100
-    return item.RetailPrice * item.Quantity - discountAmount
+    // Ensure all values are positive numbers
+    const price = Math.max(0, Number.parseFloat(item.RetailPrice) || 0)
+    const quantity = Math.max(1, Math.round(Number.parseFloat(item.Quantity) || 1))
+    const discount = Math.max(0, Math.min(100, Number.parseFloat(item.Discount) || 0))
+
+    const subtotal = price * quantity
+    const discountAmount = (subtotal * discount) / 100
+    const finalAmount = subtotal - discountAmount
+
+    // Ensure final amount is never negative
+    return Math.max(0, finalAmount)
   }
 
   const calculateTotal = () => {
-    return saleItems.reduce((total, item) => total + calculateAmount(item), 0)
+    const total = saleItems.reduce((sum, item) => sum + calculateAmount(item), 0)
+    // Ensure total is never negative
+    return Math.max(0, total)
+  }
+
+  const validateSaleItems = () => {
+    let hasErrors = false
+    const errors = []
+
+    saleItems.forEach((item, index) => {
+      // Check for invalid quantities
+      if (!item.Quantity || item.Quantity < 1) {
+        hasErrors = true
+        errors.push(`Row ${index + 1}: Quantity must be at least 1`)
+      }
+
+      // Check for invalid discounts
+      if (item.Discount < 0 || item.Discount > 100) {
+        hasErrors = true
+        errors.push(`Row ${index + 1}: Discount must be between 0% and 100%`)
+      }
+
+      // Check for invalid prices
+      if (!item.RetailPrice || item.RetailPrice <= 0) {
+        hasErrors = true
+        errors.push(`Row ${index + 1}: Invalid retail price`)
+      }
+
+      // Check if amount becomes negative
+      if (calculateAmount(item) <= 0) {
+        hasErrors = true
+        errors.push(`Row ${index + 1}: Item amount cannot be zero or negative`)
+      }
+    })
+
+    if (hasErrors) {
+      Swal.fire({
+        title: "Validation Errors!",
+        html: errors.join("<br>"),
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return false
+    }
+
+    return true
   }
 
   const clearForm = () => {
@@ -191,8 +286,26 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
       return
     }
 
+    // Validate all sale items
+    if (!validateSaleItems()) {
+      return
+    }
+
+    const totalAmount = calculateTotal()
+
+    // Final check for total amount
+    if (totalAmount <= 0) {
+      Swal.fire({
+        title: "Error!",
+        text: "Total sale amount must be greater than zero",
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return
+    }
+
     const saleData = {
-      Total: calculateTotal(),
+      Total: totalAmount,
       SalespersonId: selectedSalesperson,
       Comments: comments,
       SaleItems: saleItems,
@@ -355,7 +468,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
               <th>Name</th>
               <th>Code</th>
               <th>Quantity</th>
-              <th>Discount</th>
+              <th>Discount (%)</th>
               <th>Price</th>
               <th>Amount</th>
               <th>Action</th>
@@ -381,6 +494,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
                       value={item.Quantity}
                       onChange={(e) => updateSaleItem(item.ProductId, "Quantity", e.target.value)}
                       min="1"
+                      step="1"
                     />
                   </td>
                   <td>
@@ -392,10 +506,15 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
                       onChange={(e) => updateSaleItem(item.ProductId, "Discount", e.target.value)}
                       min="0"
                       max="100"
+                      step="0.01"
                     />
                   </td>
-                  <td>${item.RetailPrice}</td>
-                  <td>${calculateAmount(item).toFixed(2)}</td>
+                  <td>${item.RetailPrice.toFixed(2)}</td>
+                  <td>
+                    <span className={calculateAmount(item) <= 0 ? "text-danger fw-bold" : "text-success fw-bold"}>
+                      ${calculateAmount(item).toFixed(2)}
+                    </span>
+                  </td>
                   <td>
                     <button className="btn btn-sm btn-outline-danger" onClick={() => removeSaleItem(item.ProductId)}>
                       Delete
@@ -416,7 +535,10 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
         </div>
         <div className="col-md-4 text-end">
           <h5>
-            Net Total: <span className="text-primary">${calculateTotal().toFixed(2)}</span>
+            Net Total:{" "}
+            <span className={calculateTotal() <= 0 ? "text-danger" : "text-primary"}>
+              ${calculateTotal().toFixed(2)}
+            </span>
           </h5>
         </div>
       </div>
