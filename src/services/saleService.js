@@ -1,4 +1,4 @@
-import api from './api';
+// import api from './api';
 
-export const createSale = (data) => api.post('/pos/sales', data);
-export const getSalesRecords = () => api.get('/pos/sales');
+// export const createSale = (data) => api.post('/pos/sales', data);
+// export const getSalesRecords = () => api.get('/pos/sales');
