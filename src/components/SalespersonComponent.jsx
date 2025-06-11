@@ -65,6 +65,21 @@ const SalespersonComponent = () => {
     let updatedSalespersons
 
     if (editingSalesperson) {
+      // Check if any data has actually changed
+      const hasChanges =
+        editingSalesperson.Name !== salespersonData.Name || editingSalesperson.Code !== salespersonData.Code
+
+      if (!hasChanges) {
+        Swal.fire({
+          title: "No Changes!",
+          text: "No changes were made to the salesperson",
+          icon: "info",
+          confirmButtonColor: "#8b5cf6",
+        })
+        setShowModal(false)
+        return
+      }
+
       updatedSalespersons = salespersons.map((s) =>
         s.SalespersonID === editingSalesperson.SalespersonID
           ? {
@@ -141,7 +156,7 @@ const SalespersonComponent = () => {
               second: "2-digit",
               hour12: true,
             })
-          : "Never",
+          : "-",
     },
   ]
 

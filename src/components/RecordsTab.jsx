@@ -130,7 +130,7 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
                           second: "2-digit",
                           hour12: true,
                         })
-                      : "Never"}
+                      : "-"}
                   </td>
                   <td>{getSalespersonName(record.SalespersonId)}</td>
                   <td>${record.Total.toFixed(2)}</td>

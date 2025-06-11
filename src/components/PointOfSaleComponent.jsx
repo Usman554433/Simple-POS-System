@@ -42,6 +42,25 @@ const PointOfSaleComponent = () => {
     if (isEditing && originalSaleId) {
       const originalRecord = salesRecords.find((record) => record.SaleId === originalSaleId)
 
+      // Check if any data has actually changed
+      const hasChanges =
+        originalRecord.Total !== saleData.Total ||
+        originalRecord.SalespersonId !== saleData.SalespersonId ||
+        originalRecord.Comments !== saleData.Comments ||
+        JSON.stringify(originalRecord.SaleItems) !== JSON.stringify(saleData.SaleItems)
+
+      if (!hasChanges) {
+        Swal.fire({
+          title: "No Changes!",
+          text: "No changes were made to the sale record",
+          icon: "info",
+          confirmButtonColor: "#8b5cf6",
+        })
+        setEditingSaleId(null)
+        setLoadedSaleData(null)
+        return
+      }
+
       updatedRecords = salesRecords.map((record) =>
         record.SaleId === originalSaleId
           ? {

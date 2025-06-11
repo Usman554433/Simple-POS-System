@@ -65,6 +65,25 @@ const ProductsComponent = () => {
     let updatedProducts
 
     if (editingProduct) {
+      // Check if any data has actually changed
+      const hasChanges =
+        editingProduct.Name !== productData.Name ||
+        editingProduct.Code !== productData.Code ||
+        editingProduct.ImageURL !== productData.ImageURL ||
+        editingProduct.CostPrice !== productData.CostPrice ||
+        editingProduct.RetailPrice !== productData.RetailPrice
+
+      if (!hasChanges) {
+        Swal.fire({
+          title: "No Changes!",
+          text: "No changes were made to the product",
+          icon: "info",
+          confirmButtonColor: "#8b5cf6",
+        })
+        setShowModal(false)
+        return
+      }
+
       updatedProducts = products.map((p) =>
         p.ProductId === editingProduct.ProductId
           ? {
@@ -143,7 +162,7 @@ const ProductsComponent = () => {
               second: "2-digit",
               hour12: true,
             })
-          : "Never",
+          : "-",
     },
   ]
 
