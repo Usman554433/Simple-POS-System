@@ -22,11 +22,6 @@ const SalespersonComponent = () => {
     }
   }
 
-  const saveSalespersons = (updatedSalespersons) => {
-    localStorage.setItem("salespersons", JSON.stringify(updatedSalespersons))
-    setSalespersons(updatedSalespersons)
-  }
-
   const handleAddSalesperson = () => {
     setEditingSalesperson(null)
     setShowModal(true)
@@ -48,8 +43,15 @@ const SalespersonComponent = () => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        const updatedSalespersons = salespersons.filter((s) => s.SalespersonID !== salespersonId)
-        saveSalespersons(updatedSalespersons)
+        // More efficient: Just remove the specific salesperson
+        const savedSalespersons = JSON.parse(localStorage.getItem("salespersons") || "[]")
+        const index = savedSalespersons.findIndex((s) => s.SalespersonID === salespersonId)
+
+        if (index > -1) {
+          savedSalespersons.splice(index, 1) // Remove just this one salesperson
+          localStorage.setItem("salespersons", JSON.stringify(savedSalespersons))
+          setSalespersons(savedSalespersons) // Update state
+        }
 
         Swal.fire({
           title: "Deleted!",
@@ -62,8 +64,6 @@ const SalespersonComponent = () => {
   }
 
   const handleSaveSalesperson = (salespersonData) => {
-    let updatedSalespersons
-
     if (editingSalesperson) {
       // Check if any data has actually changed
       const hasChanges =
@@ -80,16 +80,20 @@ const SalespersonComponent = () => {
         return
       }
 
-      updatedSalespersons = salespersons.map((s) =>
-        s.SalespersonID === editingSalesperson.SalespersonID
-          ? {
-              ...salespersonData,
-              SalespersonID: editingSalesperson.SalespersonID,
-              EnteredDate: editingSalesperson.EnteredDate,
-              UpdatedDate: new Date().toISOString(),
-            }
-          : s,
-      )
+      // More efficient: Just update the specific salesperson
+      const savedSalespersons = JSON.parse(localStorage.getItem("salespersons") || "[]")
+      const index = savedSalespersons.findIndex((s) => s.SalespersonID === editingSalesperson.SalespersonID)
+
+      if (index > -1) {
+        savedSalespersons[index] = {
+          ...salespersonData,
+          SalespersonID: editingSalesperson.SalespersonID,
+          EnteredDate: editingSalesperson.EnteredDate,
+          UpdatedDate: new Date().toISOString(),
+        }
+        localStorage.setItem("salespersons", JSON.stringify(savedSalespersons))
+        setSalespersons(savedSalespersons) // Update state
+      }
 
       Swal.fire({
         title: "Success!",
@@ -98,6 +102,8 @@ const SalespersonComponent = () => {
         confirmButtonColor: "#8b5cf6",
       })
     } else {
+      // More efficient: Just add the new salesperson
+      const savedSalespersons = JSON.parse(localStorage.getItem("salespersons") || "[]")
       const now = new Date().toISOString()
       const newSalesperson = {
         ...salespersonData,
@@ -105,7 +111,10 @@ const SalespersonComponent = () => {
         EnteredDate: now,
         UpdatedDate: null,
       }
-      updatedSalespersons = [...salespersons, newSalesperson]
+
+      savedSalespersons.push(newSalesperson) // Just add this one salesperson
+      localStorage.setItem("salespersons", JSON.stringify(savedSalespersons))
+      setSalespersons(savedSalespersons) // Update state
 
       Swal.fire({
         title: "Success!",
@@ -115,7 +124,6 @@ const SalespersonComponent = () => {
       })
     }
 
-    saveSalespersons(updatedSalespersons)
     setShowModal(false)
   }
 

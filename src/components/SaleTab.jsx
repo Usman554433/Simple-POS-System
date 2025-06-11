@@ -145,7 +145,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
         processedValue = 1
         Swal.fire({
           title: "Invalid Quantity!",
-          text: "Quantity can't be negative. Minimum is 1.",
+          text: "Quantity must be at least 1",
           icon: "warning",
           confirmButtonColor: "#8b5cf6",
           timer: 2000,
@@ -266,15 +266,15 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const handleSaveRecord = () => {
-    if (!selectedSalesperson) {
-      Swal.fire({
-        title: "Error!",
-        text: "Please select a salesperson",
-        icon: "error",
-        confirmButtonColor: "#8b5cf6",
-      })
-      return
-    }
+    // if (!selectedSalesperson) {
+    //   Swal.fire({
+    //     title: "Error!",
+    //     text: "Please select a salesperson",
+    //     icon: "error",
+    //     confirmButtonColor: "#8b5cf6",
+    //   })
+    //   return
+    // }
 
     if (saleItems.length === 0) {
       Swal.fire({
@@ -397,51 +397,52 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
       </div>
 
       <div className="row mb-4">
-        <div className="col-md-8">
+        <div className="col-md-12">
           <label className="form-label">Enter Product...</label>
-          <div className="position-relative">
-            <input
-              ref={searchInputRef}
-              type="text"
-              className="form-control"
-              placeholder="Search products..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            {filteredProducts.length > 0 && (
-              <div
-                ref={dropdownRef}
-                className="position-absolute w-100 bg-white border rounded shadow-sm"
-                style={{ zIndex: 1000, top: "100%", maxHeight: "300px", overflowY: "auto" }}
-              >
-                {filteredProducts.map((product, index) => (
+          <div className="d-flex gap-3 align-items-end">
+            <div className="flex-grow-1" style={{ maxWidth: "400px" }}>
+              <div className="position-relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="form-control"
+                  placeholder="Search products..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+                {filteredProducts.length > 0 && (
                   <div
-                    key={product.ProductId}
-                    className={`p-2 border-bottom dropdown-item ${selectedProductIndex === index ? "bg-light" : ""}`}
-                    onClick={() => addProductToSale(product)}
-                    style={{ cursor: "pointer" }}
-                    onMouseEnter={() => setSelectedProductIndex(index)}
+                    ref={dropdownRef}
+                    className="position-absolute w-100 bg-white border rounded shadow-sm"
+                    style={{ zIndex: 1000, top: "100%", maxHeight: "300px", overflowY: "auto" }}
                   >
-                    <strong>{product.Name}</strong> - {product.Code} (${product.RetailPrice})
+                    {filteredProducts.map((product, index) => (
+                      <div
+                        key={product.ProductId}
+                        className={`p-2 border-bottom dropdown-item ${selectedProductIndex === index ? "bg-light" : ""}`}
+                        onClick={() => addProductToSale(product)}
+                        style={{ cursor: "pointer" }}
+                        onMouseEnter={() => setSelectedProductIndex(index)}
+                      >
+                        <strong>{product.Name}</strong> - {product.Code} (${product.RetailPrice})
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-        </div>
-        <div className="col-md-4">
-          <label className="form-label">&nbsp;</label>
-          <div>
-            <button
-              type="button"
-              className="btn btn-outline-primary"
-              onClick={() => setShowProductListModal(true)}
-              style={{ width: "50px", height: "50px" }}
-              title="Browse All Products"
-            >
-              <i className="fas fa-shopping-cart"></i>
-            </button>
+            </div>
+            <div>
+              <button
+                type="button"
+                className="btn btn-outline-primary d-flex align-items-center justify-content-center"
+                onClick={() => setShowProductListModal(true)}
+                style={{ width: "50px", height: "38px" }}
+                title="Browse All Products"
+              >
+                <i className="fas fa-shopping-cart"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>

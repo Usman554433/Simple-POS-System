@@ -22,11 +22,6 @@ const ProductsComponent = () => {
     }
   }
 
-  const saveProducts = (updatedProducts) => {
-    localStorage.setItem("products", JSON.stringify(updatedProducts))
-    setProducts(updatedProducts)
-  }
-
   const handleAddProduct = () => {
     setEditingProduct(null)
     setShowModal(true)
@@ -48,8 +43,15 @@ const ProductsComponent = () => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        const updatedProducts = products.filter((p) => p.ProductId !== productId)
-        saveProducts(updatedProducts)
+        // More efficient: Just remove the specific product
+        const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
+        const index = savedProducts.findIndex((p) => p.ProductId === productId)
+
+        if (index > -1) {
+          savedProducts.splice(index, 1) // Remove just this one product
+          localStorage.setItem("products", JSON.stringify(savedProducts))
+          setProducts(savedProducts) // Update state
+        }
 
         Swal.fire({
           title: "Deleted!",
@@ -62,8 +64,6 @@ const ProductsComponent = () => {
   }
 
   const handleSaveProduct = (productData) => {
-    let updatedProducts
-
     if (editingProduct) {
       // Check if any data has actually changed
       const hasChanges =
@@ -84,16 +84,20 @@ const ProductsComponent = () => {
         return
       }
 
-      updatedProducts = products.map((p) =>
-        p.ProductId === editingProduct.ProductId
-          ? {
-              ...productData,
-              ProductId: editingProduct.ProductId,
-              CreationDate: editingProduct.CreationDate,
-              UpdatedDate: new Date().toISOString(),
-            }
-          : p,
-      )
+      // More efficient: Just update the specific product
+      const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
+      const index = savedProducts.findIndex((p) => p.ProductId === editingProduct.ProductId)
+
+      if (index > -1) {
+        savedProducts[index] = {
+          ...productData,
+          ProductId: editingProduct.ProductId,
+          CreationDate: editingProduct.CreationDate,
+          UpdatedDate: new Date().toISOString(),
+        }
+        localStorage.setItem("products", JSON.stringify(savedProducts))
+        setProducts(savedProducts) // Update state
+      }
 
       Swal.fire({
         title: "Success!",
@@ -102,6 +106,8 @@ const ProductsComponent = () => {
         confirmButtonColor: "#8b5cf6",
       })
     } else {
+      // More efficient: Just add the new product
+      const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
       const now = new Date().toISOString()
       const newProduct = {
         ...productData,
@@ -109,7 +115,10 @@ const ProductsComponent = () => {
         CreationDate: now,
         UpdatedDate: null,
       }
-      updatedProducts = [...products, newProduct]
+
+      savedProducts.push(newProduct) // Just add this one product
+      localStorage.setItem("products", JSON.stringify(savedProducts))
+      setProducts(savedProducts) // Update state
 
       Swal.fire({
         title: "Success!",
@@ -119,7 +128,6 @@ const ProductsComponent = () => {
       })
     }
 
-    saveProducts(updatedProducts)
     setShowModal(false)
   }
 
