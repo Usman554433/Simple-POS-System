@@ -310,16 +310,6 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const handleSaveRecord = () => {
-    if (!selectedSalesperson) {
-      Swal.fire({
-        title: "Error!",
-        text: "Please select a salesperson",
-        icon: "error",
-        confirmButtonColor: "#8b5cf6",
-      })
-      return
-    }
-
     if (saleItems.length === 0) {
       Swal.fire({
         title: "Error!",
