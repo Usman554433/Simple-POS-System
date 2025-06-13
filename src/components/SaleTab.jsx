@@ -4,6 +4,37 @@ import { useState, useEffect, useRef } from "react"
 import ProductListModal from "./ProductListModal"
 import Swal from "sweetalert2"
 
+// Live clock component for Pakistan time
+const LiveClock = () => {
+  const [time, setTime] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // Format time in Pakistan timezone (UTC+5)
+  const pakistanTime = new Date(time.getTime() + 5 * 60 * 60 * 1000)
+  const hours = pakistanTime.getUTCHours()
+  const minutes = pakistanTime.getUTCMinutes()
+  const seconds = pakistanTime.getUTCSeconds()
+  const ampm = hours >= 12 ? "PM" : "AM"
+
+  // Convert to 12-hour format
+  const formattedHours = hours % 12 || 12
+
+  return (
+    <span className="text-nowrap">
+      {formattedHours.toString().padStart(2, "0")}:{minutes.toString().padStart(2, "0")}:
+      {seconds.toString().padStart(2, "0")}
+      {ampm}
+    </span>
+  )
+}
+
 const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, onDeleteSale }) => {
   const [saleDate, setSaleDate] = useState("")
   const [selectedSalesperson, setSelectedSalesperson] = useState("")
@@ -20,14 +51,27 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   const dropdownRef = useRef(null)
 
   useEffect(() => {
-    // Set current date and time
-    const now = new Date()
-    const formattedDate = now.toISOString().slice(0, 16)
-    setSaleDate(formattedDate)
+    // Set current date and time in Pakistan time zone
+    const updateDateTime = () => {
+      const now = new Date()
+      // Convert to Pakistan time (UTC+5)
+      const pakistanTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+      const formattedDate = pakistanTime.toISOString().slice(0, 16)
+      setSaleDate(formattedDate)
+    }
+
+    // Update immediately
+    updateDateTime()
+
+    // Set up interval to update time every second
+    const intervalId = setInterval(updateDateTime, 1000)
 
     // Load data from localStorage
     loadSalespersons()
     loadProducts()
+
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId)
   }, [])
 
   useEffect(() => {
@@ -266,15 +310,15 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const handleSaveRecord = () => {
-    // if (!selectedSalesperson) {
-    //   Swal.fire({
-    //     title: "Error!",
-    //     text: "Please select a salesperson",
-    //     icon: "error",
-    //     confirmButtonColor: "#8b5cf6",
-    //   })
-    //   return
-    // }
+    if (!selectedSalesperson) {
+      Swal.fire({
+        title: "Error!",
+        text: "Please select a salesperson",
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return
+    }
 
     if (saleItems.length === 0) {
       Swal.fire({
@@ -372,12 +416,18 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
       <div className="row mb-4">
         <div className="col-md-6">
           <label className="form-label">Date</label>
-          <input
-            type="datetime-local"
-            className="form-control"
-            value={saleDate}
-            onChange={(e) => setSaleDate(e.target.value)}
-          />
+          <div className="input-group">
+            <input
+              type="datetime-local"
+              className="form-control"
+              value={saleDate}
+              onChange={(e) => setSaleDate(e.target.value)}
+            />
+            <span className="input-group-text">
+              <LiveClock />
+            </span>
+          </div>
+          <small className="text-muted">Pakistan Time (UTC+5)</small>
         </div>
         <div className="col-md-6">
           <label className="form-label">Salesperson</label>
