@@ -395,6 +395,25 @@ body {
   background-color: rgba(139, 92, 246, 0.02);
 }
 
+/* Sortable Headers */
+.sortable-header {
+  transition: all 0.2s ease;
+}
+
+.sortable-header:hover {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+  color: var(--primary-purple) !important;
+}
+
+.sortable-header .d-flex {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sortable-header i {
+  transition: all 0.2s ease;
+}
+
 /* Buttons */
 .btn-primary {
   background: var(--primary-purple);

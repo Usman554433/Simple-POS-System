@@ -5,11 +5,53 @@ import { useState } from "react"
 const DataTable = ({ data, columns, onEdit, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" })
 
   const totalPages = Math.ceil(data.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
+
+  // Sorting function
+  const handleSort = (key) => {
+    let direction = "asc"
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc"
+    }
+    setSortConfig({ key, direction })
+  }
+
+  // Sort data based on current sort config
+  const sortedData = [...data].sort((a, b) => {
+    if (!sortConfig.key) return 0
+
+    const aValue = a[sortConfig.key]
+    const bValue = b[sortConfig.key]
+
+    // Handle different data types
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+      return sortConfig.direction === "asc" ? comparison : -comparison
+    }
+
+    if (typeof aValue === "number" && typeof bValue === "number") {
+      const comparison = aValue - bValue
+      return sortConfig.direction === "asc" ? comparison : -comparison
+    }
+
+    // Handle dates
+    if (aValue && bValue && (aValue.includes("-") || aValue.includes("/"))) {
+      const dateA = new Date(aValue)
+      const dateB = new Date(bValue)
+      const comparison = dateA - dateB
+      return sortConfig.direction === "asc" ? comparison : -comparison
+    }
+
+    // Default string comparison
+    const comparison = String(aValue).localeCompare(String(bValue))
+    return sortConfig.direction === "asc" ? comparison : -comparison
+  })
+
+  const currentData = sortedData.slice(startIndex, endIndex)
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
@@ -27,6 +69,17 @@ const DataTable = ({ data, columns, onEdit, onDelete }) => {
       )
     }
     return pages
+  }
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return <i className="fas fa-sort text-muted ms-1" style={{ opacity: 0.5 }}></i>
+    }
+    return sortConfig.direction === "asc" ? (
+      <i className="fas fa-sort-up text-primary ms-1"></i>
+    ) : (
+      <i className="fas fa-sort-down text-primary ms-1"></i>
+    )
   }
 
   return (
@@ -51,6 +104,14 @@ const DataTable = ({ data, columns, onEdit, onDelete }) => {
             <span className="ms-2">entries</span>
           </div>
         </div>
+        <div className="col-md-6">
+          <div className="text-end">
+            <small className="text-muted">
+              <i className="fas fa-info-circle me-1"></i>
+              Click column headers to sort
+            </small>
+          </div>
+        </div>
       </div>
 
       <div className="table-responsive">
@@ -58,7 +119,17 @@ const DataTable = ({ data, columns, onEdit, onDelete }) => {
           <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column.key}>{column.label}</th>
+                <th
+                  key={column.key}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSort(column.key)}
+                  className="sortable-header"
+                >
+                  <div className="d-flex align-items-center justify-content-between">
+                    <span>{column.label}</span>
+                    {getSortIcon(column.key)}
+                  </div>
+                </th>
               ))}
               <th>Actions</th>
             </tr>
@@ -97,7 +168,16 @@ const DataTable = ({ data, columns, onEdit, onDelete }) => {
       <div className="row">
         <div className="col-md-6">
           <p className="text-muted">
-            Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} entries
+            Showing {startIndex + 1} to {Math.min(endIndex, sortedData.length)} of {sortedData.length} entries
+            {sortConfig.key && (
+              <span className="ms-2">
+                <i className="fas fa-filter text-primary"></i>
+                <small>
+                  {" "}
+                  Sorted by {columns.find((col) => col.key === sortConfig.key)?.label} ({sortConfig.direction})
+                </small>
+              </span>
+            )}
           </p>
         </div>
         <div className="col-md-6">
