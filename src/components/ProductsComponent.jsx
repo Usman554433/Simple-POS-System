@@ -222,6 +222,7 @@ const ProductsComponent = () => {
           columns={columns}
           onEdit={handleEditProduct}
           onDelete={handleDeleteProduct}
+          defaultSortConfig={{ key: "CreationDate", direction: "desc" }}
         />
       </div>
 

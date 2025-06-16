@@ -216,6 +216,7 @@ const SalespersonComponent = () => {
           columns={columns}
           onEdit={handleEditSalesperson}
           onDelete={handleDeleteSalesperson}
+          defaultSortConfig={{ key: "EnteredDate", direction: "desc" }}
         />
       </div>
 

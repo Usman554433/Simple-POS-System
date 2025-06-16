@@ -2,14 +2,16 @@
 
 import { useState } from "react"
 
-const DataTable = ({ data, columns, onEdit, onDelete }) => {
+const DataTable = ({ data, columns, onEdit, onDelete, defaultSortConfig }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  // Default to descending order by the first column (latest to oldest)
-  const [sortConfig, setSortConfig] = useState({
-    key: columns[0]?.key || null,
-    direction: "desc",
-  })
+  // Use provided defaultSortConfig or fall back to first column descending
+  const [sortConfig, setSortConfig] = useState(
+    defaultSortConfig || {
+      key: columns[0]?.key || null,
+      direction: "desc",
+    },
+  )
 
   const totalPages = Math.ceil(data.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage

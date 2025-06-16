@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import ProductListModal from "./ProductListModal"
 import Swal from "sweetalert2"
 
-// Live clock component for Pakistan time
-const LiveClock = () => {
+// Live clock component for Pakistan time with seconds
+const LiveDateTime = () => {
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
@@ -16,48 +16,39 @@ const LiveClock = () => {
     return () => clearInterval(timer)
   }, [])
 
-  // Format time in Pakistan timezone (UTC+5)
-  const pakistanTime = new Date(time.getTime() + 5 * 60 * 60 * 1000)
-  const hours = pakistanTime.getUTCHours()
-  const minutes = pakistanTime.getUTCMinutes()
-  const seconds = pakistanTime.getUTCSeconds()
-  const ampm = hours >= 12 ? "PM" : "AM"
-
-  // Convert to 12-hour format
-  const formattedHours = hours % 12 || 12
-
-  return (
-    <span className="text-nowrap fw-bold text-primary">
-      {formattedHours.toString().padStart(2, "0")}:{minutes.toString().padStart(2, "0")}:
-      {seconds.toString().padStart(2, "0")}
-      {ampm}
-    </span>
-  )
-}
-
-// Live date component for Pakistan time
-const LiveDate = () => {
-  const [time, setTime] = useState(new Date())
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [])
-
-  // Format date in Pakistan timezone (UTC+5)
+  // Format time in Pakistan timezone (UTC+5) for display
   const pakistanTime = new Date(time.getTime() + 5 * 60 * 60 * 1000)
 
-  // Format for datetime-local input
-  const year = pakistanTime.getUTCFullYear()
+  // Format for display: MM/DD/YYYY HH:MM:SS AM/PM
   const month = (pakistanTime.getUTCMonth() + 1).toString().padStart(2, "0")
   const day = pakistanTime.getUTCDate().toString().padStart(2, "0")
-  const hours = pakistanTime.getUTCHours().toString().padStart(2, "0")
+  const year = pakistanTime.getUTCFullYear()
+  const hours = pakistanTime.getUTCHours()
   const minutes = pakistanTime.getUTCMinutes().toString().padStart(2, "0")
+  const seconds = pakistanTime.getUTCSeconds().toString().padStart(2, "0")
+  const ampm = hours >= 12 ? "PM" : "AM"
+  const displayHours = (hours % 12 || 12).toString().padStart(2, "0")
 
-  return `${year}-${month}-${day}T${hours}:${minutes}`
+  return `${month}/${day}/${year} ${displayHours}:${minutes}:${seconds} ${ampm}`
+}
+
+// Static DateTime component for editing mode (shows creation time)
+const StaticDateTime = ({ dateTime }) => {
+  if (!dateTime) return ""
+
+  const date = new Date(dateTime)
+
+  // Format for display: MM/DD/YYYY HH:MM:SS AM/PM
+  const month = (date.getMonth() + 1).toString().padStart(2, "0")
+  const day = date.getDate().toString().padStart(2, "0")
+  const year = date.getFullYear()
+  const hours = date.getHours()
+  const minutes = date.getMinutes().toString().padStart(2, "0")
+  const seconds = date.getSeconds().toString().padStart(2, "0")
+  const ampm = hours >= 12 ? "PM" : "AM"
+  const displayHours = (hours % 12 || 12).toString().padStart(2, "0")
+
+  return `${month}/${day}/${year} ${displayHours}:${minutes}:${seconds} ${ampm}`
 }
 
 const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, onDeleteSale }) => {
@@ -71,6 +62,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   const [comments, setComments] = useState("")
   const [showProductListModal, setShowProductListModal] = useState(false)
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1)
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const searchInputRef = useRef(null)
   const dropdownRef = useRef(null)
@@ -439,59 +431,83 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
         <div className="col-md-6">
           <label className="form-label">Date</label>
           <div className="input-group">
-            <input
-              type="datetime-local"
-              className="form-control"
-              value={saleDate}
-              onChange={(e) => setSaleDate(e.target.value)}
-              readOnly={!editingSaleId} // Make readonly when not editing to show live time
-            />
-            <span className="input-group-text">
-              <i className="fas fa-calendar-alt"></i>
-            </span>
+            {/* Show live time display when not editing, static time when editing */}
+            {!editingSaleId ? (
+              <>
+                <div className="form-control d-flex align-items-center justify-content-between bg-light">
+                  <span className="fw-bold text-primary">
+                    <LiveDateTime />
+                  </span>
+                </div>
+                <button
+                  className="btn btn-outline-secondary"
+                  type="button"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  title="Set Custom Date/Time"
+                >
+                  <i className="fas fa-calendar-alt"></i>
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="form-control d-flex align-items-center justify-content-between bg-light">
+                  <span className="fw-bold text-info">
+                    <StaticDateTime dateTime={loadedSaleData?.CreationDate || loadedSaleData?.SaleDate} />
+                  </span>
+                </div>
+                <span className="input-group-text">
+                  <i className="fas fa-calendar-alt"></i>
+                </span>
+              </>
+            )}
           </div>
           <small className="text-muted">Pakistan Time (UTC+5)</small>
+
+          {/* Custom date picker for non-editing mode */}
+          {!editingSaleId && showDatePicker && (
+            <div className="mt-2 p-3 border rounded bg-white shadow-sm">
+              <label className="form-label small">Set Custom Date/Time:</label>
+              <div className="d-flex gap-2">
+                <input
+                  type="datetime-local"
+                  className="form-control form-control-sm"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                />
+                <button className="btn btn-sm btn-primary" onClick={() => setShowDatePicker(false)}>
+                  <i className="fas fa-check"></i>
+                </button>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => {
+                    // Reset to current time
+                    const now = new Date()
+                    const pakistanTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+                    setSaleDate(pakistanTime.toISOString().slice(0, 16))
+                    setShowDatePicker(false)
+                  }}
+                >
+                  <i className="fas fa-sync-alt"></i>
+                </button>
+              </div>
+              <small className="text-muted">Click check to apply or sync to reset to current time</small>
+            </div>
+          )}
         </div>
         <div className="col-md-6">
           <label className="form-label">Salesperson</label>
-          <div className="d-flex align-items-center">
-            <select
-              className="form-select me-3"
-              value={selectedSalesperson}
-              onChange={(e) => setSelectedSalesperson(e.target.value)}
-            >
-              <option value="">--Select Sale Person--</option>
-              {salespersons.map((person) => (
-                <option key={person.SalespersonID} value={person.SalespersonID}>
-                  {person.Name}
-                </option>
-              ))}
-            </select>
-            {/* Show live clock only when NOT editing */}
-            {!editingSaleId && (
-              <div className="text-end">
-                <LiveClock />
-              </div>
-            )}
-            {/* Show creation time when editing */}
-            {editingSaleId && loadedSaleData && (
-              <div className="text-end">
-                <small className="text-muted">Created:</small>
-                <br />
-                <span className="fw-bold text-info">
-                  {new Date(loadedSaleData.CreationDate || loadedSaleData.SaleDate).toLocaleString("en-US", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    hour12: true,
-                  })}
-                </span>
-              </div>
-            )}
-          </div>
+          <select
+            className="form-select"
+            value={selectedSalesperson}
+            onChange={(e) => setSelectedSalesperson(e.target.value)}
+          >
+            <option value="">--Select Sale Person--</option>
+            {salespersons.map((person) => (
+              <option key={person.SalespersonID} value={person.SalespersonID}>
+                {person.Name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
