@@ -27,12 +27,37 @@ const LiveClock = () => {
   const formattedHours = hours % 12 || 12
 
   return (
-    <span className="text-nowrap">
+    <span className="text-nowrap fw-bold text-primary">
       {formattedHours.toString().padStart(2, "0")}:{minutes.toString().padStart(2, "0")}:
       {seconds.toString().padStart(2, "0")}
       {ampm}
     </span>
   )
+}
+
+// Live date component for Pakistan time
+const LiveDate = () => {
+  const [time, setTime] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // Format date in Pakistan timezone (UTC+5)
+  const pakistanTime = new Date(time.getTime() + 5 * 60 * 60 * 1000)
+
+  // Format for datetime-local input
+  const year = pakistanTime.getUTCFullYear()
+  const month = (pakistanTime.getUTCMonth() + 1).toString().padStart(2, "0")
+  const day = pakistanTime.getUTCDate().toString().padStart(2, "0")
+  const hours = pakistanTime.getUTCHours().toString().padStart(2, "0")
+  const minutes = pakistanTime.getUTCMinutes().toString().padStart(2, "0")
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
 const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, onDeleteSale }) => {
@@ -51,28 +76,25 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   const dropdownRef = useRef(null)
 
   useEffect(() => {
-    // Set current date and time in Pakistan time zone
-    const updateDateTime = () => {
-      const now = new Date()
-      // Convert to Pakistan time (UTC+5)
-      const pakistanTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
-      const formattedDate = pakistanTime.toISOString().slice(0, 16)
-      setSaleDate(formattedDate)
-    }
-
-    // Update immediately
-    updateDateTime()
-
-    // Set up interval to update time every second
-    const intervalId = setInterval(updateDateTime, 1000)
-
     // Load data from localStorage
     loadSalespersons()
     loadProducts()
-
-    // Clean up interval on component unmount
-    return () => clearInterval(intervalId)
   }, [])
+
+  // Update date automatically when NOT in editing mode
+  useEffect(() => {
+    if (!editingSaleId) {
+      const timer = setInterval(() => {
+        const now = new Date()
+        // Convert to Pakistan time (UTC+5)
+        const pakistanTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+        const formattedDate = pakistanTime.toISOString().slice(0, 16)
+        setSaleDate(formattedDate)
+      }, 1000)
+
+      return () => clearInterval(timer)
+    }
+  }, [editingSaleId])
 
   useEffect(() => {
     if (loadedSaleData) {
@@ -310,6 +332,16 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const handleSaveRecord = () => {
+    if (!selectedSalesperson) {
+      Swal.fire({
+        title: "Error!",
+        text: "Please select a salesperson",
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return
+    }
+
     if (saleItems.length === 0) {
       Swal.fire({
         title: "Error!",
@@ -412,27 +444,54 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
               className="form-control"
               value={saleDate}
               onChange={(e) => setSaleDate(e.target.value)}
+              readOnly={!editingSaleId} // Make readonly when not editing to show live time
             />
             <span className="input-group-text">
-              <LiveClock />
+              <i className="fas fa-calendar-alt"></i>
             </span>
           </div>
           <small className="text-muted">Pakistan Time (UTC+5)</small>
         </div>
         <div className="col-md-6">
           <label className="form-label">Salesperson</label>
-          <select
-            className="form-select"
-            value={selectedSalesperson}
-            onChange={(e) => setSelectedSalesperson(e.target.value)}
-          >
-            <option value="">--Select Sale Person--</option>
-            {salespersons.map((person) => (
-              <option key={person.SalespersonID} value={person.SalespersonID}>
-                {person.Name}
-              </option>
-            ))}
-          </select>
+          <div className="d-flex align-items-center">
+            <select
+              className="form-select me-3"
+              value={selectedSalesperson}
+              onChange={(e) => setSelectedSalesperson(e.target.value)}
+            >
+              <option value="">--Select Sale Person--</option>
+              {salespersons.map((person) => (
+                <option key={person.SalespersonID} value={person.SalespersonID}>
+                  {person.Name}
+                </option>
+              ))}
+            </select>
+            {/* Show live clock only when NOT editing */}
+            {!editingSaleId && (
+              <div className="text-end">
+                <LiveClock />
+              </div>
+            )}
+            {/* Show creation time when editing */}
+            {editingSaleId && loadedSaleData && (
+              <div className="text-end">
+                <small className="text-muted">Created:</small>
+                <br />
+                <span className="fw-bold text-info">
+                  {new Date(loadedSaleData.CreationDate || loadedSaleData.SaleDate).toLocaleString("en-US", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: true,
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

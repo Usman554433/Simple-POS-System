@@ -7,7 +7,8 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
   const [salespersons, setSalespersons] = useState([])
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" })
+  // Default to descending order by SaleId (latest first)
+  const [sortConfig, setSortConfig] = useState({ key: "SaleId", direction: "desc" })
 
   useEffect(() => {
     loadSalespersons()
@@ -167,7 +168,7 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
             />
             <small className="text-muted text-nowrap">
               <i className="fas fa-info-circle me-1"></i>
-              Click headers to sort
+              Latest first
             </small>
           </div>
         </div>
@@ -273,7 +274,8 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
                 <i className="fas fa-filter text-primary"></i>
                 <small>
                   {" "}
-                  Sorted by {columns.find((col) => col.key === sortConfig.key)?.label} ({sortConfig.direction})
+                  Sorted by {columns.find((col) => col.key === sortConfig.key)?.label} (
+                  {sortConfig.direction === "desc" ? "Latest first" : "Oldest first"})
                 </small>
               </span>
             )}
