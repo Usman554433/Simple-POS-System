@@ -66,8 +66,8 @@ const SalespersonComponent = () => {
   const handleSaveSalesperson = (salespersonData) => {
     if (editingSalesperson) {
       // Check if any data has actually changed
-      const hasChanges =
-        editingSalesperson.Name !== salespersonData.Name || editingSalesperson.Code !== salespersonData.Code
+      const hasChanges = editingSalesperson.Name !== salespersonData.Name
+      // Note: Code is not checked since it's locked in edit mode
 
       if (!hasChanges) {
         Swal.fire({
@@ -88,6 +88,7 @@ const SalespersonComponent = () => {
         savedSalespersons[index] = {
           ...salespersonData,
           SalespersonID: editingSalesperson.SalespersonID,
+          Code: editingSalesperson.Code, // Keep the original code (locked)
           EnteredDate: editingSalesperson.EnteredDate,
           UpdatedDate: new Date().toISOString(),
         }

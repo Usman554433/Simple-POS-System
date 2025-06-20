@@ -68,10 +68,10 @@ const ProductsComponent = () => {
       // Check if any data has actually changed
       const hasChanges =
         editingProduct.Name !== productData.Name ||
-        editingProduct.Code !== productData.Code ||
         editingProduct.ImageURL !== productData.ImageURL ||
         editingProduct.CostPrice !== productData.CostPrice ||
         editingProduct.RetailPrice !== productData.RetailPrice
+      // Note: Code is not checked since it's locked in edit mode
 
       if (!hasChanges) {
         Swal.fire({
@@ -92,6 +92,7 @@ const ProductsComponent = () => {
         savedProducts[index] = {
           ...productData,
           ProductId: editingProduct.ProductId,
+          Code: editingProduct.Code, // Keep the original code (locked)
           CreationDate: editingProduct.CreationDate,
           UpdatedDate: new Date().toISOString(),
         }

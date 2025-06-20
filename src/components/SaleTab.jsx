@@ -412,6 +412,20 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
     }
   }
 
+  // ESC key handler for SaleTab
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && editingSaleId) {
+        handleClearForm()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [editingSaleId])
+
   return (
     <div className="w-100">
       {editingSaleId && (
@@ -419,6 +433,11 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
           <div>
             <i className="fas fa-edit me-2"></i>
             <strong>Editing Mode:</strong> You are currently editing Sale ID: {editingSaleId}
+            <br />
+            <small className="text-muted">
+              <i className="fas fa-keyboard me-1"></i>
+              Press <kbd>ESC</kbd> to cancel editing or switch tabs to exit
+            </small>
           </div>
           <button className="btn btn-sm btn-outline-secondary" onClick={handleClearForm}>
             <i className="fas fa-times me-1"></i>

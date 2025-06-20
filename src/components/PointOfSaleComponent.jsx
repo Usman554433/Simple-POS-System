@@ -258,6 +258,57 @@ const PointOfSaleComponent = () => {
     setLoadedSaleData(null)
   }
 
+  // Add this useEffect after the existing useEffects
+  useEffect(() => {
+    // Clear editing mode when switching away from sale tab
+    if (activeTab !== "sale" && editingSaleId) {
+      setEditingSaleId(null)
+      setLoadedSaleData(null)
+    }
+  }, [activeTab, editingSaleId])
+
+  // Add ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && editingSaleId) {
+        // Show confirmation before clearing editing mode
+        Swal.fire({
+          title: "Cancel Editing?",
+          text: "Are you sure you want to cancel editing? All unsaved changes will be lost.",
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonColor: "#8b5cf6",
+          cancelButtonColor: "#d33",
+          confirmButtonText: "Yes, cancel editing",
+          cancelButtonText: "Continue editing",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            setEditingSaleId(null)
+            setLoadedSaleData(null)
+
+            Swal.fire({
+              title: "Editing Cancelled",
+              text: "You have exited editing mode.",
+              icon: "info",
+              confirmButtonColor: "#8b5cf6",
+              timer: 2000,
+              showConfirmButton: false,
+            })
+          }
+        })
+      }
+    }
+
+    // Only add listener when in editing mode
+    if (editingSaleId) {
+      document.addEventListener("keydown", handleKeyDown)
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [editingSaleId])
+
   return (
     <div className="pos-layout">
       {/* Vertical Sidebar */}
@@ -272,7 +323,20 @@ const PointOfSaleComponent = () => {
         <div className="sidebar-nav">
           <button
             className={`sidebar-nav-item ${activeTab === "sale" ? "active" : ""}`}
-            onClick={() => setActiveTab("sale")}
+            onClick={() => {
+              if (editingSaleId && activeTab !== "sale") {
+                // Show notification when switching to sale tab while editing
+                Swal.fire({
+                  title: "Editing Mode Active",
+                  text: `You are currently editing Sale ID: ${editingSaleId}`,
+                  icon: "info",
+                  confirmButtonColor: "#8b5cf6",
+                  timer: 2000,
+                  showConfirmButton: false,
+                })
+              }
+              setActiveTab("sale")
+            }}
           >
             <i className="fas fa-shopping-cart me-2"></i>
             <span>New Sale</span>
@@ -281,7 +345,38 @@ const PointOfSaleComponent = () => {
 
           <button
             className={`sidebar-nav-item ${activeTab === "records" ? "active" : ""}`}
-            onClick={() => setActiveTab("records")}
+            onClick={() => {
+              if (editingSaleId) {
+                // Show confirmation when trying to leave editing mode
+                Swal.fire({
+                  title: "Switch to Records?",
+                  text: "You are currently editing a sale. Switching tabs will cancel editing mode.",
+                  icon: "warning",
+                  showCancelButton: true,
+                  confirmButtonColor: "#8b5cf6",
+                  cancelButtonColor: "#d33",
+                  confirmButtonText: "Yes, switch tabs",
+                  cancelButtonText: "Stay in editing",
+                }).then((result) => {
+                  if (result.isConfirmed) {
+                    setEditingSaleId(null)
+                    setLoadedSaleData(null)
+                    setActiveTab("records")
+
+                    Swal.fire({
+                      title: "Editing Cancelled",
+                      text: "You have switched to Sales Records. Editing mode has been cleared.",
+                      icon: "info",
+                      confirmButtonColor: "#8b5cf6",
+                      timer: 2000,
+                      showConfirmButton: false,
+                    })
+                  }
+                })
+              } else {
+                setActiveTab("records")
+              }
+            }}
           >
             <i className="fas fa-history me-2"></i>
             <span>Sales Records</span>

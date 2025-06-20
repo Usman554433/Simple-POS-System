@@ -42,8 +42,25 @@ const SalespersonModal = ({ show, onHide, salesperson, onSave }) => {
     }
   }, [show, onHide])
 
+  const checkSalespersonCodeExists = (code) => {
+    const savedSalespersons = JSON.parse(localStorage.getItem("salespersons") || "[]")
+    return savedSalespersons.some((s) => s.Code.toLowerCase() === code.toLowerCase())
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    // Validation for new salesperson - check if code already exists
+    if (!salesperson && checkSalespersonCodeExists(formData.Code)) {
+      window.Swal.fire({
+        title: "Code Already Exists!",
+        text: `Salesperson code "${formData.Code}" already exists. Please use a different code.`,
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return
+    }
+
     onSave(formData)
   }
 
@@ -79,15 +96,27 @@ const SalespersonModal = ({ show, onHide, salesperson, onSave }) => {
                 />
               </div>
               <div className="mb-3">
-                <label className="form-label">Salesperson Code *</label>
+                <label className="form-label">
+                  Salesperson Code *
+                  {salesperson && <small className="text-muted ms-2">(Code cannot be changed in edit mode)</small>}
+                </label>
                 <input
                   type="text"
-                  className="form-control"
+                  className={`form-control ${salesperson ? "bg-light" : ""}`}
                   name="Code"
                   value={formData.Code}
                   onChange={handleChange}
                   required
+                  readOnly={!!salesperson} // Make read-only in edit mode
+                  disabled={!!salesperson} // Disable in edit mode
+                  style={salesperson ? { cursor: "not-allowed" } : {}}
                 />
+                {salesperson && (
+                  <small className="text-info">
+                    <i className="fas fa-lock me-1"></i>
+                    Salesperson code is locked for existing salespersons
+                  </small>
+                )}
               </div>
             </div>
             <div className="modal-footer">

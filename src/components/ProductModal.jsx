@@ -51,8 +51,25 @@ const ProductModal = ({ show, onHide, product, onSave }) => {
     }
   }, [show, onHide])
 
+  const checkProductCodeExists = (code) => {
+    const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
+    return savedProducts.some((p) => p.Code.toLowerCase() === code.toLowerCase())
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    // Validation for new product - check if code already exists
+    if (!product && checkProductCodeExists(formData.Code)) {
+      window.Swal.fire({
+        title: "Code Already Exists!",
+        text: `Product code "${formData.Code}" already exists. Please use a different code.`,
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return
+    }
+
     onSave(formData)
   }
 
@@ -88,15 +105,27 @@ const ProductModal = ({ show, onHide, product, onSave }) => {
                 />
               </div>
               <div className="mb-3">
-                <label className="form-label">Product Code *</label>
+                <label className="form-label">
+                  Product Code *
+                  {product && <small className="text-muted ms-2">(Code cannot be changed in edit mode)</small>}
+                </label>
                 <input
                   type="text"
-                  className="form-control"
+                  className={`form-control ${product ? "bg-light" : ""}`}
                   name="Code"
                   value={formData.Code}
                   onChange={handleChange}
                   required
+                  readOnly={!!product} // Make read-only in edit mode
+                  disabled={!!product} // Disable in edit mode
+                  style={product ? { cursor: "not-allowed" } : {}}
                 />
+                {product && (
+                  <small className="text-info">
+                    <i className="fas fa-lock me-1"></i>
+                    Product code is locked for existing products
+                  </small>
+                )}
               </div>
               <div className="mb-3">
                 <label className="form-label">Image URL</label>
