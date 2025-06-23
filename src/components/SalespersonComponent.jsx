@@ -176,7 +176,20 @@ const SalespersonComponent = () => {
           confirmButtonColor: "#8b5cf6",
         })
       } else {
-        // Add new salesperson (existing code remains the same)
+        // Add new salesperson - First update the UI immediately, then call API
+        const tempId = Date.now() // Temporary ID for immediate UI update
+        const newSalesperson = {
+          SalespersonID: tempId,
+          Name: salespersonData.Name,
+          Code: salespersonData.Code,
+          EnteredDate: new Date().toISOString(),
+          UpdatedDate: null,
+        }
+
+        // Add to state immediately for smooth UI
+        setSalespersons([newSalesperson, ...salespersons])
+
+        // Now call the API
         const addData = {
           Name: salespersonData.Name,
           Code: salespersonData.Code,
@@ -191,12 +204,21 @@ const SalespersonComponent = () => {
         })
 
         if (!response.ok) {
+          // If API fails, remove the temporary salesperson from state
+          setSalespersons(salespersons.filter((s) => s.SalespersonID !== tempId))
           const errorText = await response.text()
           throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
         }
 
-        // Reload salespersons to get the new salesperson with server-generated ID
-        await loadSalespersons()
+        // Get the real ID from server response
+        const responseData = await response.json()
+
+        // Update the temporary salesperson with real server ID
+        setSalespersons((prevSalespersons) =>
+          prevSalespersons.map((s) =>
+            s.SalespersonID === tempId ? { ...s, SalespersonID: responseData.salespersonID || tempId } : s,
+          ),
+        )
 
         Swal.fire({
           title: "Success!",

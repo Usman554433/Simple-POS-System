@@ -620,7 +620,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
             <option value="">--Select Sale Person--</option>
             {salespersons.map((person) => (
               <option key={person.SalespersonID} value={person.SalespersonID}>
-                {person.Name} ({person.Code})
+                {person.Name}
               </option>
             ))}
           </select>

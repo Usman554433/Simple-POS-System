@@ -188,7 +188,23 @@ const ProductsComponent = () => {
           confirmButtonColor: "#8b5cf6",
         })
       } else {
-        // Add new product (existing code remains the same)
+        // Add new product - First update the UI immediately, then call API
+        const tempId = Date.now() // Temporary ID for immediate UI update
+        const newProduct = {
+          ProductId: tempId,
+          Name: productData.Name,
+          Code: productData.Code,
+          CostPrice: Number.parseFloat(productData.CostPrice),
+          RetailPrice: Number.parseFloat(productData.RetailPrice),
+          ImageURL: productData.ImageURL,
+          CreationDate: new Date().toISOString(),
+          UpdatedDate: null,
+        }
+
+        // Add to state immediately for smooth UI
+        setProducts([newProduct, ...products])
+
+        // Now call the API
         const addData = {
           Name: productData.Name,
           Code: productData.Code,
@@ -206,12 +222,19 @@ const ProductsComponent = () => {
         })
 
         if (!response.ok) {
+          // If API fails, remove the temporary product from state
+          setProducts(products.filter((p) => p.ProductId !== tempId))
           const errorText = await response.text()
           throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
         }
 
-        // Reload products to get the new product with server-generated ID
-        await loadProducts()
+        // Get the real ID from server response
+        const responseData = await response.json()
+
+        // Update the temporary product with real server ID
+        setProducts((prevProducts) =>
+          prevProducts.map((p) => (p.ProductId === tempId ? { ...p, ProductId: responseData.productId || tempId } : p)),
+        )
 
         Swal.fire({
           title: "Success!",
