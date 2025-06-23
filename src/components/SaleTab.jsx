@@ -63,15 +63,23 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   const [showProductListModal, setShowProductListModal] = useState(false)
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
+  const [isLoadingSalespersons, setIsLoadingSalespersons] = useState(false)
 
   const searchInputRef = useRef(null)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
-    // Load data from backend
+    // Load salespersons on component mount
     loadSalespersons()
-    loadProducts()
   }, [])
+
+  // Load products when user starts searching (fresh data every time)
+  useEffect(() => {
+    if (productSearch.length > 0 && products.length === 0) {
+      loadProducts()
+    }
+  }, [productSearch])
 
   // Update date automatically when NOT in editing mode
   useEffect(() => {
@@ -101,11 +109,13 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
 
   useEffect(() => {
     if (productSearch.length > 0) {
-      const filtered = products.filter(
-        (product) =>
-          product.Name.toLowerCase().includes(productSearch.toLowerCase()) ||
-          product.Code.toLowerCase().includes(productSearch.toLowerCase()),
-      )
+      const filtered = products
+        .filter(
+          (product) =>
+            product.Name.toLowerCase().includes(productSearch.toLowerCase()) ||
+            product.Code.toLowerCase().includes(productSearch.toLowerCase()),
+        )
+        .sort((a, b) => new Date(b.CreationDate) - new Date(a.CreationDate)) // Latest first
       setFilteredProducts(filtered)
       setSelectedProductIndex(filtered.length > 0 ? 0 : -1) // Select first item by default
     } else {
@@ -154,6 +164,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const loadSalespersons = async () => {
+    setIsLoadingSalespersons(true)
     try {
       const response = await fetch("https://localhost:7078/api/salespersons", {
         method: "GET",
@@ -168,24 +179,29 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
 
       const data = await response.json()
 
-      // Transform backend data to match frontend format
-      const transformedSalespersons = data.map((salesperson) => ({
-        SalespersonID: salesperson.salespersonID,
-        Name: salesperson.name,
-        Code: salesperson.code,
-        EnteredDate: salesperson.enteredDate,
-        UpdatedDate: salesperson.updatedDate,
-      }))
+      // Transform backend data to match frontend format and sort by latest first
+      const transformedSalespersons = data
+        .map((salesperson) => ({
+          SalespersonID: salesperson.salespersonID,
+          Name: salesperson.name,
+          Code: salesperson.code,
+          EnteredDate: salesperson.enteredDate,
+          UpdatedDate: salesperson.updatedDate,
+        }))
+        .sort((a, b) => new Date(b.EnteredDate) - new Date(a.EnteredDate)) // Latest first
 
       setSalespersons(transformedSalespersons)
     } catch (error) {
       console.error("Error loading salespersons:", error)
       // Keep salespersons as empty array if there's an error
       setSalespersons([])
+    } finally {
+      setIsLoadingSalespersons(false)
     }
   }
 
   const loadProducts = async () => {
+    setIsLoadingProducts(true)
     try {
       const response = await fetch("https://localhost:7078/api/products", {
         method: "GET",
@@ -200,24 +216,38 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
 
       const data = await response.json()
 
-      // Transform backend data to match frontend format
-      const transformedProducts = data.map((product) => ({
-        ProductId: product.productId,
-        Name: product.name,
-        Code: product.code,
-        CostPrice: product.costPrice,
-        RetailPrice: product.retailPrice,
-        ImageURL: product.imageURL,
-        CreationDate: product.creationDate,
-        UpdatedDate: product.updationDate,
-      }))
+      // Transform backend data to match frontend format and sort by latest first
+      const transformedProducts = data
+        .map((product) => ({
+          ProductId: product.productId,
+          Name: product.name,
+          Code: product.code,
+          CostPrice: product.costPrice,
+          RetailPrice: product.retailPrice,
+          ImageURL: product.imageURL,
+          CreationDate: product.creationDate,
+          UpdatedDate: product.updationDate,
+        }))
+        .sort((a, b) => new Date(b.CreationDate) - new Date(a.CreationDate)) // Latest first
 
       setProducts(transformedProducts)
     } catch (error) {
       console.error("Error loading products:", error)
       // Keep products as empty array if there's an error
       setProducts([])
+    } finally {
+      setIsLoadingProducts(false)
     }
+  }
+
+  // Function to refresh products (called when user clicks on search or product list)
+  const refreshProducts = async () => {
+    await loadProducts()
+  }
+
+  // Function to refresh salespersons
+  const refreshSalespersons = async () => {
+    await loadSalespersons()
   }
 
   const addProductToSale = (product) => {
@@ -567,25 +597,47 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
           )}
         </div>
         <div className="col-md-6">
-          <label className="form-label">Salesperson</label>
+          <label className="form-label">
+            Salesperson
+            <button
+              className="btn btn-sm btn-outline-secondary ms-2"
+              onClick={refreshSalespersons}
+              disabled={isLoadingSalespersons}
+              title="Refresh Salespersons List"
+            >
+              <i className={`fas ${isLoadingSalespersons ? "fa-spinner fa-spin" : "fa-sync-alt"}`}></i>
+            </button>
+          </label>
           <select
             className="form-select"
             value={selectedSalesperson}
             onChange={(e) => setSelectedSalesperson(e.target.value)}
+            disabled={isLoadingSalespersons}
           >
             <option value="">--Select Sale Person--</option>
             {salespersons.map((person) => (
               <option key={person.SalespersonID} value={person.SalespersonID}>
-                {person.Name}
+                {person.Name} ({person.Code})
               </option>
             ))}
           </select>
+          {isLoadingSalespersons && <small className="text-muted">Loading salespersons...</small>}
         </div>
       </div>
 
       <div className="row mb-4">
         <div className="col-md-12">
-          <label className="form-label">Enter Product...</label>
+          <label className="form-label">
+            Enter Product...
+            <button
+              className="btn btn-sm btn-outline-secondary ms-2"
+              onClick={refreshProducts}
+              disabled={isLoadingProducts}
+              title="Refresh Products List"
+            >
+              <i className={`fas ${isLoadingProducts ? "fa-spinner fa-spin" : "fa-sync-alt"}`}></i>
+            </button>
+          </label>
           <div className="d-flex gap-3 align-items-end">
             <div className="flex-grow-1" style={{ maxWidth: "400px" }}>
               <div className="position-relative">
@@ -593,11 +645,22 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
                   ref={searchInputRef}
                   type="text"
                   className="form-control"
-                  placeholder="Search products..."
+                  placeholder="Search products... (Latest products shown first)"
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onFocus={() => {
+                    // Load products when user focuses on search (fresh data)
+                    if (products.length === 0) {
+                      refreshProducts()
+                    }
+                  }}
                 />
+                {isLoadingProducts && (
+                  <div className="position-absolute end-0 top-50 translate-middle-y me-2">
+                    <i className="fas fa-spinner fa-spin text-primary"></i>
+                  </div>
+                )}
                 {filteredProducts.length > 0 && (
                   <div
                     ref={dropdownRef}
@@ -612,7 +675,17 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
                         style={{ cursor: "pointer" }}
                         onMouseEnter={() => setSelectedProductIndex(index)}
                       >
-                        <strong>{product.Name}</strong> - {product.Code} (${product.RetailPrice})
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <strong>{product.Name}</strong> - {product.Code}
+                          </div>
+                          <div className="text-end">
+                            <div className="text-primary fw-bold">${product.RetailPrice}</div>
+                            <small className="text-muted">
+                              Added: {new Date(product.CreationDate).toLocaleDateString()}
+                            </small>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -623,14 +696,19 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
               <button
                 type="button"
                 className="btn btn-outline-primary d-flex align-items-center justify-content-center"
-                onClick={() => setShowProductListModal(true)}
+                onClick={() => {
+                  // Refresh products before showing modal
+                  refreshProducts()
+                  setShowProductListModal(true)
+                }}
                 style={{ width: "50px", height: "38px" }}
-                title="Browse All Products"
+                title="Browse All Products (Latest First)"
               >
                 <i className="fas fa-shopping-cart"></i>
               </button>
             </div>
           </div>
+          {isLoadingProducts && <small className="text-muted">Loading latest products...</small>}
         </div>
       </div>
 

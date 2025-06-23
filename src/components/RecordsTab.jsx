@@ -21,9 +21,19 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
     }
   }
 
-  const getSalespersonName = (salespersonId) => {
-    const salesperson = salespersons.find((s) => s.SalespersonID == salespersonId)
-    return salesperson ? salesperson.Name : `ID: ${salespersonId}`
+  const getSalespersonName = (record) => {
+    // If we have salespersonName from the backend, use it
+    if (record.SalespersonName) {
+      return record.SalespersonName
+    }
+
+    // Otherwise, try to find by ID
+    if (record.SalespersonId) {
+      const salesperson = salespersons.find((s) => s.SalespersonID == record.SalespersonId)
+      return salesperson ? salesperson.Name : `ID: ${record.SalespersonId}`
+    }
+
+    return "Unknown"
   }
 
   // Sorting function
@@ -36,12 +46,12 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
   }
 
   const filteredRecords = salesRecords.filter((record) => {
-    const salesperson = record.SalespersonId ? record.SalespersonId.toString() : ""
+    const salesperson = getSalespersonName(record)
     const total = record.Total ? record.Total.toString() : ""
     const date = new Date(record.CreationDate || record.SaleDate).toLocaleDateString()
 
     return (
-      salesperson.includes(searchTerm) ||
+      salesperson.toLowerCase().includes(searchTerm.toLowerCase()) ||
       total.includes(searchTerm) ||
       date.includes(searchTerm) ||
       (record.Comments && record.Comments.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -68,8 +78,8 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
         bValue = b.UpdatedDate ? new Date(b.UpdatedDate) : new Date(0)
         break
       case "Salesperson":
-        aValue = getSalespersonName(a.SalespersonId).toLowerCase()
-        bValue = getSalespersonName(b.SalespersonId).toLowerCase()
+        aValue = getSalespersonName(a).toLowerCase()
+        bValue = getSalespersonName(b).toLowerCase()
         break
       case "Total":
         aValue = a.Total
@@ -229,9 +239,9 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
                         })
                       : "-"}
                   </td>
-                  <td>{getSalespersonName(record.SalespersonId)}</td>
+                  <td>{getSalespersonName(record)}</td>
                   <td>${record.Total.toFixed(2)}</td>
-                  <td>{record.SaleItems ? record.SaleItems.length : 0}</td>
+                  <td>-</td> {/* Items count not available in list view */}
                   <td>{record.Comments || "-"}</td>
                   <td>
                     <div className="btn-group" role="group">

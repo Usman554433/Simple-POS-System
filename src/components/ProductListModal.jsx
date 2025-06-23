@@ -7,6 +7,7 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(8)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (show) {
@@ -35,6 +36,7 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
   }, [show, onHide])
 
   const loadProducts = async () => {
+    setIsLoading(true)
     try {
       const response = await fetch("https://localhost:7078/api/products", {
         method: "GET",
@@ -49,23 +51,27 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
 
       const data = await response.json()
 
-      // Transform backend data to match frontend format
-      const transformedProducts = data.map((product) => ({
-        ProductId: product.productId,
-        Name: product.name,
-        Code: product.code,
-        CostPrice: product.costPrice,
-        RetailPrice: product.retailPrice,
-        ImageURL: product.imageURL,
-        CreationDate: product.creationDate,
-        UpdatedDate: product.updationDate,
-      }))
+      // Transform backend data to match frontend format and sort by latest first
+      const transformedProducts = data
+        .map((product) => ({
+          ProductId: product.productId,
+          Name: product.name,
+          Code: product.code,
+          CostPrice: product.costPrice,
+          RetailPrice: product.retailPrice,
+          ImageURL: product.imageURL,
+          CreationDate: product.creationDate,
+          UpdatedDate: product.updationDate,
+        }))
+        .sort((a, b) => new Date(b.CreationDate) - new Date(a.CreationDate)) // Latest first
 
       setProducts(transformedProducts)
     } catch (error) {
       console.error("Error loading products:", error)
       // Keep products as empty array if there's an error
       setProducts([])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -112,148 +118,172 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
           <div className="modal-header">
             <h5 className="modal-title">
               <i className="fas fa-list me-2"></i>
-              Select Product
+              Select Product (Latest First)
             </h5>
             <button type="button" className="btn-close btn-close-white" onClick={onHide}></button>
           </div>
           <div className="modal-body">
-            <div className="row mb-3">
-              <div className="col-md-8">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search products by name or code..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setCurrentPage(1)
-                  }}
-                  autoFocus
-                />
-              </div>
-              <div className="col-md-4 text-end">
-                <span className="badge bg-primary fs-6">Total: {filteredProducts.length}</span>
-              </div>
-            </div>
-
-            {currentProducts.length === 0 ? (
+            {isLoading ? (
               <div className="text-center py-4">
-                <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
-                <p className="text-muted">
-                  {products.length === 0
-                    ? "No products available. Please add products first."
-                    : "No products match your search."}
-                </p>
+                <div className="spinner-border text-primary mb-3" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="text-muted">Loading latest products...</p>
               </div>
             ) : (
-              <div className="table-responsive">
-                <table className="table table-hover">
-                  <thead>
-                    <tr>
-                      <th>Image</th>
-                      <th>Product Name</th>
-                      <th>Code</th>
-                      <th>Cost Price</th>
-                      <th>Retail Price</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentProducts.map((product) => (
-                      <tr
-                        key={product.ProductId}
-                        style={{ cursor: "pointer" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f8f9fa")}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
-                      >
-                        <td>
-                          {product.ImageURL ? (
-                            <img
-                              src={product.ImageURL || "/placeholder.svg"}
-                              alt={product.Name}
-                              style={{ width: "40px", height: "40px", objectFit: "cover" }}
-                              className="rounded"
-                              onError={(e) => {
-                                e.target.style.display = "none"
-                                e.target.nextSibling.style.display = "flex"
-                              }}
-                            />
-                          ) : (
-                            <div
-                              className="d-flex align-items-center justify-content-center bg-light rounded"
-                              style={{ width: "40px", height: "40px" }}
-                            >
-                              <i className="fas fa-image text-muted"></i>
-                            </div>
-                          )}
-                          <div
-                            className="d-none align-items-center justify-content-center bg-light rounded"
-                            style={{ width: "40px", height: "40px" }}
-                          >
-                            <i className="fas fa-image text-muted"></i>
-                          </div>
-                        </td>
-                        <td>
-                          <strong>{product.Name}</strong>
-                        </td>
-                        <td>
-                          <span className="badge bg-secondary">{product.Code}</span>
-                        </td>
-                        <td>${product.CostPrice}</td>
-                        <td>
-                          <strong className="text-primary">${product.RetailPrice}</strong>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleProductSelect(product)}
-                            title="Add to Sale"
-                          >
-                            <i className="fas fa-plus me-1"></i>
-                            Add
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+              <>
+                <div className="row mb-3">
+                  <div className="col-md-8">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Search products by name or code..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="col-md-4 text-end">
+                    <span className="badge bg-primary fs-6">Total: {filteredProducts.length}</span>
+                    <button
+                      className="btn btn-sm btn-outline-secondary ms-2"
+                      onClick={loadProducts}
+                      title="Refresh Products"
+                    >
+                      <i className="fas fa-sync-alt"></i>
+                    </button>
+                  </div>
+                </div>
 
-            {totalPages > 1 && (
-              <div className="row mt-3">
-                <div className="col-md-6">
-                  <p className="text-muted">
-                    Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of{" "}
-                    {filteredProducts.length} products
-                  </p>
-                </div>
-                <div className="col-md-6">
-                  <nav>
-                    <ul className="pagination justify-content-end">
-                      <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                        <button
-                          className="page-link"
-                          onClick={() => handlePageChange(currentPage - 1)}
-                          disabled={currentPage === 1}
-                        >
-                          Previous
-                        </button>
-                      </li>
-                      {renderPagination()}
-                      <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                        <button
-                          className="page-link"
-                          onClick={() => handlePageChange(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                        >
-                          Next
-                        </button>
-                      </li>
-                    </ul>
-                  </nav>
-                </div>
-              </div>
+                {currentProducts.length === 0 ? (
+                  <div className="text-center py-4">
+                    <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <p className="text-muted">
+                      {products.length === 0
+                        ? "No products available. Please add products first."
+                        : "No products match your search."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Image</th>
+                          <th>Product Name</th>
+                          <th>Code</th>
+                          <th>Cost Price</th>
+                          <th>Retail Price</th>
+                          <th>Added Date</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentProducts.map((product) => (
+                          <tr
+                            key={product.ProductId}
+                            style={{ cursor: "pointer" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f8f9fa")}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+                          >
+                            <td>
+                              {product.ImageURL ? (
+                                <img
+                                  src={product.ImageURL || "/placeholder.svg"}
+                                  alt={product.Name}
+                                  style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                                  className="rounded"
+                                  onError={(e) => {
+                                    e.target.style.display = "none"
+                                    e.target.nextSibling.style.display = "flex"
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  className="d-flex align-items-center justify-content-center bg-light rounded"
+                                  style={{ width: "40px", height: "40px" }}
+                                >
+                                  <i className="fas fa-image text-muted"></i>
+                                </div>
+                              )}
+                              <div
+                                className="d-none align-items-center justify-content-center bg-light rounded"
+                                style={{ width: "40px", height: "40px" }}
+                              >
+                                <i className="fas fa-image text-muted"></i>
+                              </div>
+                            </td>
+                            <td>
+                              <strong>{product.Name}</strong>
+                            </td>
+                            <td>
+                              <span className="badge bg-secondary">{product.Code}</span>
+                            </td>
+                            <td>${product.CostPrice}</td>
+                            <td>
+                              <strong className="text-primary">${product.RetailPrice}</strong>
+                            </td>
+                            <td>
+                              <small className="text-muted">
+                                {new Date(product.CreationDate).toLocaleDateString()}
+                              </small>
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => handleProductSelect(product)}
+                                title="Add to Sale"
+                              >
+                                <i className="fas fa-plus me-1"></i>
+                                Add
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {totalPages > 1 && (
+                  <div className="row mt-3">
+                    <div className="col-md-6">
+                      <p className="text-muted">
+                        Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of{" "}
+                        {filteredProducts.length} products
+                      </p>
+                    </div>
+                    <div className="col-md-6">
+                      <nav>
+                        <ul className="pagination justify-content-end">
+                          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                            <button
+                              className="page-link"
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                            >
+                              Previous
+                            </button>
+                          </li>
+                          {renderPagination()}
+                          <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                            <button
+                              className="page-link"
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                            </button>
+                          </li>
+                        </ul>
+                      </nav>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="modal-footer">

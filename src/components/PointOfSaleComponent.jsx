@@ -17,10 +17,38 @@ const PointOfSaleComponent = () => {
     loadSalespersons()
   }, [])
 
-  const loadSalesRecords = () => {
-    const savedRecords = localStorage.getItem("salesRecords")
-    if (savedRecords) {
-      setSalesRecords(JSON.parse(savedRecords))
+  const loadSalesRecords = async () => {
+    try {
+      const response = await fetch("https://localhost:7078/api/salerecords", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Transform backend data to match frontend format
+      const transformedRecords = data.map((record) => ({
+        SaleId: record.saleId,
+        SaleDate: record.saleDate,
+        CreationDate: record.saleDate, // Use saleDate as CreationDate for list view
+        Total: record.total,
+        SalespersonName: record.salespersonName,
+        UpdatedDate: record.editDate && record.editDate !== record.saleDate ? record.editDate : null, // Only show if actually updated
+        Comments: record.comments,
+        // Note: SaleItems are not included in the list view, will be fetched separately when needed
+      }))
+
+      setSalesRecords(transformedRecords)
+    } catch (error) {
+      console.error("Error loading sales records:", error)
+      // Keep salesRecords as empty array if there's an error
+      setSalesRecords([])
     }
   }
 
@@ -36,71 +64,98 @@ const PointOfSaleComponent = () => {
     return salesperson ? salesperson.Name : `ID: ${salespersonId}`
   }
 
-  const saveSalesRecord = (saleData, isEditing = false, originalSaleId = null) => {
-    if (isEditing && originalSaleId) {
-      const savedRecords = JSON.parse(localStorage.getItem("salesRecords") || "[]")
-      const originalRecord = savedRecords.find((record) => record.SaleId === originalSaleId)
+  const saveSalesRecord = async (saleData, isEditing = false, originalSaleId = null) => {
+    try {
+      if (isEditing && originalSaleId) {
+        // Get the original record details first
+        const detailResponse = await fetch(`https://localhost:7078/api/salerecords/${originalSaleId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
 
-      if (!originalRecord) return
+        if (!detailResponse.ok) {
+          throw new Error(`Failed to fetch original record: ${detailResponse.status}`)
+        }
 
-      // Check if any data has actually changed
-      const hasChanges =
-        originalRecord.Total !== saleData.Total ||
-        originalRecord.SalespersonId !== saleData.SalespersonId ||
-        originalRecord.Comments !== saleData.Comments ||
-        JSON.stringify(originalRecord.SaleItems) !== JSON.stringify(saleData.SaleItems)
+        const originalRecord = await detailResponse.json()
 
-      if (!hasChanges) {
+        // Prepare update data
+        const updateData = {
+          saleId: originalSaleId,
+          total: saleData.Total,
+          creationDate: originalRecord.creationDate,
+          salespersonId: saleData.SalespersonId,
+          comments: saleData.Comments,
+          saleItems: saleData.SaleItems.map((item) => ({
+            productId: item.ProductId,
+            retailPrice: item.RetailPrice,
+            quantity: item.Quantity,
+            discount: item.Discount,
+          })),
+        }
+
+        const response = await fetch("https://localhost:7078/api/salerecords/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
         Swal.fire({
-          title: "No Changes!",
-          text: "No changes were made to the sale record",
-          icon: "info",
+          title: "Updated!",
+          text: "Sale record has been updated successfully.",
+          icon: "success",
           confirmButtonColor: "#8b5cf6",
         })
-        setEditingSaleId(null)
-        setLoadedSaleData(null)
-        return
-      }
-
-      // More efficient: Just update the specific record
-      const index = savedRecords.findIndex((record) => record.SaleId === originalSaleId)
-
-      if (index > -1) {
-        savedRecords[index] = {
-          ...saleData,
-          SaleId: originalSaleId,
-          CreationDate: originalRecord.CreationDate || originalRecord.SaleDate,
-          UpdatedDate: new Date().toISOString(),
+      } else {
+        // Add new sale record
+        const addData = {
+          salespersonId: saleData.SalespersonId,
+          total: saleData.Total,
+          comments: saleData.Comments,
+          saleItems: saleData.SaleItems.map((item) => ({
+            productId: item.ProductId,
+            retailPrice: item.RetailPrice,
+            quantity: item.Quantity,
+            discount: item.Discount,
+          })),
         }
-        localStorage.setItem("salesRecords", JSON.stringify(savedRecords))
-        setSalesRecords(savedRecords) // Update state
+
+        const response = await fetch("https://localhost:7078/api/salerecords/add", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(addData),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        Swal.fire({
+          title: "Success!",
+          text: "Sale record has been saved successfully.",
+          icon: "success",
+          confirmButtonColor: "#8b5cf6",
+        })
       }
 
+      // Reload sales records after successful operation
+      await loadSalesRecords()
+    } catch (error) {
+      console.error("Error saving sale record:", error)
       Swal.fire({
-        title: "Updated!",
-        text: "Sale record has been updated successfully.",
-        icon: "success",
-        confirmButtonColor: "#8b5cf6",
-      })
-    } else {
-      // More efficient: Just add the new record
-      const savedRecords = JSON.parse(localStorage.getItem("salesRecords") || "[]")
-      const now = new Date().toISOString()
-      const newSale = {
-        SaleId: Date.now(),
-        CreationDate: now,
-        UpdatedDate: null,
-        ...saleData,
-      }
-
-      savedRecords.push(newSale) // Just add this one record
-      localStorage.setItem("salesRecords", JSON.stringify(savedRecords))
-      setSalesRecords(savedRecords) // Update state
-
-      Swal.fire({
-        title: "Success!",
-        text: "Sale record has been saved successfully.",
-        icon: "success",
+        title: "Error!",
+        text: `Failed to save sale record: ${error.message}`,
+        icon: "error",
         confirmButtonColor: "#8b5cf6",
       })
     }
@@ -109,116 +164,239 @@ const PointOfSaleComponent = () => {
     setLoadedSaleData(null)
   }
 
-  const loadSaleRecord = (saleRecord) => {
-    setLoadedSaleData(saleRecord)
-    setEditingSaleId(saleRecord.SaleId)
-    setActiveTab("sale")
+  const loadSaleRecord = async (saleRecord) => {
+    try {
+      // Fetch detailed record from backend
+      const response = await fetch(`https://localhost:7078/api/salerecords/${saleRecord.SaleId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const detailedRecord = await response.json()
+
+      // Load products to get product details for sale items
+      const productsResponse = await fetch("https://localhost:7078/api/products", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      let products = []
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json()
+        products = productsData.map((product) => ({
+          ProductId: product.productId,
+          Name: product.name,
+          Code: product.code,
+          RetailPrice: product.retailPrice,
+        }))
+      }
+
+      // Transform the detailed record to match frontend format
+      const transformedRecord = {
+        SaleId: detailedRecord.saleId,
+        CreationDate: detailedRecord.creationDate,
+        UpdatedDate: detailedRecord.updatedDate,
+        SalespersonId: detailedRecord.salespersonId,
+        Total: detailedRecord.total,
+        Comments: detailedRecord.comments,
+        SaleItems: [], // Will be populated from the backend if available
+      }
+
+      // If the backend provides sale items, transform them
+      if (detailedRecord.saleItems && Array.isArray(detailedRecord.saleItems)) {
+        transformedRecord.SaleItems = detailedRecord.saleItems.map((item) => {
+          // Find product details
+          const product = products.find((p) => p.ProductId === item.productId)
+          return {
+            ProductId: item.productId,
+            Name: product ? product.Name : `Product ID: ${item.productId}`,
+            Code: product ? product.Code : `P${item.productId}`,
+            RetailPrice: item.retailPrice,
+            Quantity: item.quantity,
+            Discount: item.discount,
+          }
+        })
+      }
+
+      setLoadedSaleData(transformedRecord)
+      setEditingSaleId(transformedRecord.SaleId)
+      setActiveTab("sale")
+    } catch (error) {
+      console.error("Error loading sale record details:", error)
+      Swal.fire({
+        title: "Error!",
+        text: `Failed to load sale record details: ${error.message}`,
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+    }
   }
 
-  const viewSaleRecord = (saleRecord) => {
-    const itemsTable =
-      saleRecord.SaleItems && saleRecord.SaleItems.length > 0
-        ? `
-        <div style="margin-top: 15px;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <thead>
-              <tr style="background-color: #8b5cf6; color: white;">
-                <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">#</th>
-                <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Product</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Qty</th>
-                <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Price</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Discount</th>
-                <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${saleRecord.SaleItems.map((item, index) => {
-                const subtotal = item.RetailPrice * item.Quantity
-                const discountAmount = (subtotal * item.Discount) / 100
+  const viewSaleRecord = async (saleRecord) => {
+    try {
+      // Fetch detailed record from backend
+      const response = await fetch(`https://localhost:7078/api/salerecords/${saleRecord.SaleId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const detailedRecord = await response.json()
+
+      // Load products to get product details for sale items
+      const productsResponse = await fetch("https://localhost:7078/api/products", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      let products = []
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json()
+        products = productsData.map((product) => ({
+          ProductId: product.productId,
+          Name: product.name,
+          Code: product.code,
+          RetailPrice: product.retailPrice,
+        }))
+      }
+
+      // Build items table if sale items exist
+      let itemsTable = ""
+      if (detailedRecord.saleItems && Array.isArray(detailedRecord.saleItems) && detailedRecord.saleItems.length > 0) {
+        itemsTable = `
+      <div style="margin-top: 15px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background-color: #8b5cf6; color: white;">
+              <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">#</th>
+              <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Product</th>
+              <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Qty</th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Price</th>
+              <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Discount</th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${detailedRecord.saleItems
+              .map((item, index) => {
+                const product = products.find((p) => p.ProductId === item.productId)
+                const productName = product ? product.Name : `Product ID: ${item.productId}`
+                const productCode = product ? product.Code : `P${item.productId}`
+
+                const subtotal = item.retailPrice * item.quantity
+                const discountAmount = (subtotal * item.discount) / 100
                 const finalAmount = subtotal - discountAmount
 
                 return `
-                  <tr style="border-bottom: 1px solid #eee; ${index % 2 === 0 ? "background-color: #f9f9f9;" : ""}">
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #8b5cf6;">${index + 1}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">
-                      <div style="font-weight: bold; color: #333;">${item.Name}</div>
-                      <div style="font-size: 12px; color: #666;">Code: ${item.Code}</div>
-                    </td>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${item.Quantity}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #333;">$${item.RetailPrice.toFixed(2)}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; ${item.Discount > 0 ? "color: #e74c3c; font-weight: bold;" : "color: #666;"}">${item.Discount}%</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #27ae60;">$${finalAmount.toFixed(2)}</td>
-                  </tr>
-                `
-              }).join("")}
-            </tbody>
-            <tfoot>
-              <tr style="background-color: #f8f9fa; font-weight: bold;">
-                <td colspan="5" style="padding: 10px; border: 1px solid #ddd; text-align: right; font-size: 16px;">Total:</td>
-                <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-size: 16px; color: #8b5cf6;">$${saleRecord.Total.toFixed(2)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      `
-        : '<p style="color: #666; font-style: italic; margin-top: 15px;">No items in this sale</p>'
+                <tr style="border-bottom: 1px solid #eee; ${index % 2 === 0 ? "background-color: #f9f9f9;" : ""}">
+                  <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #8b5cf6;">${index + 1}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">
+                    <div style="font-weight: bold; color: #333;">${productName}</div>
+                    <div style="font-size: 12px; color: #666;">Code: ${productCode}</div>
+                  </td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${item.quantity}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #333;">$${item.retailPrice.toFixed(2)}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center; ${item.discount > 0 ? "color: #e74c3c; font-weight: bold;" : "color: #666;"}">${item.discount}%</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #27ae60;">$${finalAmount.toFixed(2)}</td>
+                </tr>
+              `
+              })
+              .join("")}
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #f8f9fa; font-weight: bold;">
+              <td colspan="5" style="padding: 10px; border: 1px solid #ddd; text-align: right; font-size: 16px;">Total:</td>
+              <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-size: 16px; color: #8b5cf6;">$${detailedRecord.total.toFixed(2)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `
+      } else {
+        itemsTable =
+          '<p style="color: #666; font-style: italic; margin-top: 15px;">No items found in this sale record</p>'
+      }
 
-    Swal.fire({
-      title: `Sale Details - ID: ${saleRecord.SaleId}`,
-      html: `
-        <div style="text-align: left; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
-              <div>
-                <strong style="color: #8b5cf6;">📅 Date:</strong><br>
-                <span style="color: #333;">${new Date(saleRecord.CreationDate || saleRecord.SaleDate).toLocaleString()}</span>
-              </div>
-              <div>
-                <strong style="color: #8b5cf6;">🔄 Updated:</strong><br>
-                <span style="color: #333;">${saleRecord.UpdatedDate ? new Date(saleRecord.UpdatedDate).toLocaleString() : "Never"}</span>
-              </div>
+      Swal.fire({
+        title: `Sale Details - ID: ${detailedRecord.saleId}`,
+        html: `
+      <div style="text-align: left; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
+            <div>
+              <strong style="color: #8b5cf6;">📅 Created:</strong><br>
+              <span style="color: #333;">${new Date(detailedRecord.creationDate).toLocaleString()}</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-              <div>
-                <strong style="color: #8b5cf6;">👤 Salesperson:</strong><br>
-                <span style="color: #333;">${getSalespersonName(saleRecord.SalespersonId)}</span>
-              </div>
-              <div>
-                <strong style="color: #8b5cf6;">💰 Total:</strong><br>
-                <span style="color: #27ae60; font-weight: bold; font-size: 18px;">$${saleRecord.Total.toFixed(2)}</span>
-              </div>
+            <div>
+              <strong style="color: #8b5cf6;">🔄 Updated:</strong><br>
+              <span style="color: #333;">${detailedRecord.updatedDate ? new Date(detailedRecord.updatedDate).toLocaleString() : "Never"}</span>
             </div>
-            ${
-              saleRecord.Comments
-                ? `
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                <strong style="color: #8b5cf6;">💬 Comments:</strong><br>
-                <span style="color: #333; font-style: italic;">${saleRecord.Comments}</span>
-              </div>
-            `
-                : ""
-            }
           </div>
-          
-          <div>
-            <h4 style="color: #8b5cf6; margin-bottom: 10px; display: flex; align-items: center;">
-              🛍️ Items (${saleRecord.SaleItems ? saleRecord.SaleItems.length : 0})
-            </h4>
-            ${itemsTable}
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <strong style="color: #8b5cf6;">👤 Salesperson ID:</strong><br>
+              <span style="color: #333;">${detailedRecord.salespersonId}</span>
+            </div>
+            <div>
+              <strong style="color: #8b5cf6;">💰 Total:</strong><br>
+              <span style="color: #27ae60; font-weight: bold; font-size: 18px;">$${detailedRecord.total.toFixed(2)}</span>
+            </div>
           </div>
+          ${
+            detailedRecord.comments
+              ? `
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+              <strong style="color: #8b5cf6;">💬 Comments:</strong><br>
+              <span style="color: #333; font-style: italic;">${detailedRecord.comments}</span>
+            </div>
+          `
+              : ""
+          }
         </div>
-      `,
-      icon: "info",
-      confirmButtonColor: "#8b5cf6",
-      width: "800px",
-      customClass: {
-        popup: "swal-wide-popup",
-      },
-    })
+        
+        <div>
+          <h4 style="color: #8b5cf6; margin-bottom: 10px; display: flex; align-items: center;">
+            🛍️ Items (${detailedRecord.saleItems ? detailedRecord.saleItems.length : 0})
+          </h4>
+          ${itemsTable}
+        </div>
+      </div>
+    `,
+        icon: "info",
+        confirmButtonColor: "#8b5cf6",
+        width: "800px",
+        customClass: {
+          popup: "swal-wide-popup",
+        },
+      })
+    } catch (error) {
+      console.error("Error viewing sale record:", error)
+      Swal.fire({
+        title: "Error!",
+        text: `Failed to load sale record details: ${error.message}`,
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+    }
   }
 
-  const deleteSaleRecord = (saleId) => {
-    Swal.fire({
+  const deleteSaleRecord = async (saleId) => {
+    const result = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
@@ -226,22 +404,32 @@ const PointOfSaleComponent = () => {
       confirmButtonColor: "#8b5cf6",
       cancelButtonColor: "#d33",
       confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // More efficient: Just remove the specific record
-        const savedRecords = JSON.parse(localStorage.getItem("salesRecords") || "[]")
-        const index = savedRecords.findIndex((record) => record.SaleId === saleId)
+    })
 
-        if (index > -1) {
-          savedRecords.splice(index, 1) // Remove just this one record
-          localStorage.setItem("salesRecords", JSON.stringify(savedRecords))
-          setSalesRecords(savedRecords) // Update state
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch("https://localhost:7078/api/salerecords/delete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            Id: saleId,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
 
+        // Clear editing state if we're deleting the currently edited record
         if (editingSaleId === saleId) {
           setEditingSaleId(null)
           setLoadedSaleData(null)
         }
+
+        // Reload sales records after successful deletion
+        await loadSalesRecords()
 
         Swal.fire({
           title: "Deleted!",
@@ -249,8 +437,16 @@ const PointOfSaleComponent = () => {
           icon: "success",
           confirmButtonColor: "#8b5cf6",
         })
+      } catch (error) {
+        console.error("Error deleting sale record:", error)
+        Swal.fire({
+          title: "Error!",
+          text: `Failed to delete sale record: ${error.message}`,
+          icon: "error",
+          confirmButtonColor: "#8b5cf6",
+        })
       }
-    })
+    }
   }
 
   const clearEditingState = () => {
