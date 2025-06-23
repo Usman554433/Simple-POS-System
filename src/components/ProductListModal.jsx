@@ -34,10 +34,38 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
     }
   }, [show, onHide])
 
-  const loadProducts = () => {
-    const saved = localStorage.getItem("products")
-    if (saved) {
-      setProducts(JSON.parse(saved))
+  const loadProducts = async () => {
+    try {
+      const response = await fetch("https://localhost:7078/api/products", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Transform backend data to match frontend format
+      const transformedProducts = data.map((product) => ({
+        ProductId: product.productId,
+        Name: product.name,
+        Code: product.code,
+        CostPrice: product.costPrice,
+        RetailPrice: product.retailPrice,
+        ImageURL: product.imageURL,
+        CreationDate: product.creationDate,
+        UpdatedDate: product.updationDate,
+      }))
+
+      setProducts(transformedProducts)
+    } catch (error) {
+      console.error("Error loading products:", error)
+      // Keep products as empty array if there's an error
+      setProducts([])
     }
   }
 

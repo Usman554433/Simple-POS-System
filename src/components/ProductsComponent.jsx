@@ -10,15 +10,53 @@ const ProductsComponent = () => {
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const API_BASE_URL = "https://localhost:7078/api/products"
 
   useEffect(() => {
     loadProducts()
   }, [])
 
-  const loadProducts = () => {
-    const savedProducts = localStorage.getItem("products")
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts))
+  const loadProducts = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(API_BASE_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Transform backend data to match frontend format
+      const transformedProducts = data.map((product) => ({
+        ProductId: product.productId,
+        Name: product.name,
+        Code: product.code,
+        CostPrice: product.costPrice,
+        RetailPrice: product.retailPrice,
+        ImageURL: product.imageURL,
+        CreationDate: product.creationDate,
+        UpdatedDate: product.updationDate,
+      }))
+
+      setProducts(transformedProducts)
+    } catch (error) {
+      console.error("Error loading products:", error)
+      Swal.fire({
+        title: "Error!",
+        text: `Failed to load products: ${error.message}`,
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -32,8 +70,8 @@ const ProductsComponent = () => {
     setShowModal(true)
   }
 
-  const handleDeleteProduct = (productId) => {
-    Swal.fire({
+  const handleDeleteProduct = async (productId) => {
+    const result = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
@@ -41,17 +79,27 @@ const ProductsComponent = () => {
       confirmButtonColor: "#8b5cf6",
       cancelButtonColor: "#d33",
       confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // More efficient: Just remove the specific product
-        const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
-        const index = savedProducts.findIndex((p) => p.ProductId === productId)
+    })
 
-        if (index > -1) {
-          savedProducts.splice(index, 1) // Remove just this one product
-          localStorage.setItem("products", JSON.stringify(savedProducts))
-          setProducts(savedProducts) // Update state
+    if (result.isConfirmed) {
+      setLoading(true)
+      try {
+        const response = await fetch(`${API_BASE_URL}/delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            Id: productId,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
+
+        // Remove product from local state
+        setProducts(products.filter((p) => p.ProductId !== productId))
 
         Swal.fire({
           title: "Deleted!",
@@ -59,74 +107,110 @@ const ProductsComponent = () => {
           icon: "success",
           confirmButtonColor: "#8b5cf6",
         })
-      }
-    })
-  }
-
-  const handleSaveProduct = (productData) => {
-    if (editingProduct) {
-      // Check if any data has actually changed
-      const hasChanges =
-        editingProduct.Name !== productData.Name ||
-        editingProduct.ImageURL !== productData.ImageURL ||
-        editingProduct.CostPrice !== productData.CostPrice ||
-        editingProduct.RetailPrice !== productData.RetailPrice
-      // Note: Code is not checked since it's locked in edit mode
-
-      if (!hasChanges) {
+      } catch (error) {
+        console.error("Error deleting product:", error)
         Swal.fire({
-          title: "No Changes!",
-          text: "No changes were made to the product",
-          icon: "info",
+          title: "Error!",
+          text: `Failed to delete product: ${error.message}`,
+          icon: "error",
           confirmButtonColor: "#8b5cf6",
         })
-        setShowModal(false)
-        return
+      } finally {
+        setLoading(false)
       }
+    }
+  }
 
-      // More efficient: Just update the specific product
-      const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
-      const index = savedProducts.findIndex((p) => p.ProductId === editingProduct.ProductId)
+  const handleSaveProduct = async (productData) => {
+    setLoading(true)
 
-      if (index > -1) {
-        savedProducts[index] = {
-          ...productData,
+    try {
+      if (editingProduct) {
+        // Update existing product
+        const updateData = {
           ProductId: editingProduct.ProductId,
-          Code: editingProduct.Code, // Keep the original code (locked)
-          CreationDate: editingProduct.CreationDate,
-          UpdatedDate: new Date().toISOString(),
+          Name: productData.Name,
+          ImageURL: productData.ImageURL,
+          CostPrice: Number.parseFloat(productData.CostPrice),
+          RetailPrice: Number.parseFloat(productData.RetailPrice),
         }
-        localStorage.setItem("products", JSON.stringify(savedProducts))
-        setProducts(savedProducts) // Update state
-      }
 
+        const response = await fetch(`${API_BASE_URL}/update`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        // Update product in local state
+        setProducts(
+          products.map((p) =>
+            p.ProductId === editingProduct.ProductId
+              ? {
+                  ...p,
+                  ...productData,
+                  CostPrice: Number.parseFloat(productData.CostPrice),
+                  RetailPrice: Number.parseFloat(productData.RetailPrice),
+                  UpdatedDate: new Date().toISOString(),
+                }
+              : p,
+          ),
+        )
+
+        Swal.fire({
+          title: "Success!",
+          text: "Product updated successfully",
+          icon: "success",
+          confirmButtonColor: "#8b5cf6",
+        })
+      } else {
+        // Add new product
+        const addData = {
+          Name: productData.Name,
+          Code: productData.Code,
+          ImageURL: productData.ImageURL,
+          CostPrice: Number.parseFloat(productData.CostPrice),
+          RetailPrice: Number.parseFloat(productData.RetailPrice),
+        }
+
+        const response = await fetch(`${API_BASE_URL}/add`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(addData),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        }
+
+        // Reload products to get the new product with server-generated ID
+        await loadProducts()
+
+        Swal.fire({
+          title: "Success!",
+          text: "Product added successfully",
+          icon: "success",
+          confirmButtonColor: "#8b5cf6",
+        })
+      }
+    } catch (error) {
+      console.error("Error saving product:", error)
       Swal.fire({
-        title: "Success!",
-        text: "Product updated successfully",
-        icon: "success",
+        title: "Error!",
+        text: `Failed to save product: ${error.message}`,
+        icon: "error",
         confirmButtonColor: "#8b5cf6",
       })
-    } else {
-      // More efficient: Just add the new product
-      const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
-      const now = new Date().toISOString()
-      const newProduct = {
-        ...productData,
-        ProductId: Date.now(),
-        CreationDate: now,
-        UpdatedDate: null,
-      }
-
-      savedProducts.push(newProduct) // Just add this one product
-      localStorage.setItem("products", JSON.stringify(savedProducts))
-      setProducts(savedProducts) // Update state
-
-      Swal.fire({
-        title: "Success!",
-        text: "Product added successfully",
-        icon: "success",
-        confirmButtonColor: "#8b5cf6",
-      })
+    } finally {
+      setLoading(false)
     }
 
     setShowModal(false)
@@ -177,6 +261,21 @@ const ProductsComponent = () => {
 
   return (
     <div className="full-page-layout">
+      {/* Loading Overlay */}
+      {loading && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999 }}
+        >
+          <div className="text-center text-white">
+            <div className="spinner-border text-primary mb-3" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <div>Loading products...</div>
+          </div>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="page-header">
         <div className="header-left">
@@ -187,7 +286,7 @@ const ProductsComponent = () => {
           <p className="page-subtitle">Manage your product inventory and pricing</p>
         </div>
         <div className="header-right">
-          <button className="btn btn-primary btn-lg" onClick={handleAddProduct}>
+          <button className="btn btn-primary btn-lg" onClick={handleAddProduct} disabled={loading}>
             <i className="fas fa-plus me-2"></i>
             Add New Product
           </button>

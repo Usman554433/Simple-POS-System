@@ -51,23 +51,44 @@ const ProductModal = ({ show, onHide, product, onSave }) => {
     }
   }, [show, onHide])
 
-  const checkProductCodeExists = (code) => {
-    const savedProducts = JSON.parse(localStorage.getItem("products") || "[]")
-    return savedProducts.some((p) => p.Code.toLowerCase() === code.toLowerCase())
+  const checkProductCodeExists = async (code) => {
+    try {
+      const response = await fetch("https://localhost:7078/api/products", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const products = await response.json()
+      return products.some((p) => p.code.toLowerCase() === code.toLowerCase())
+    } catch (error) {
+      console.error("Error checking product code:", error)
+      // If there's an error checking, allow the submission to proceed
+      // The backend will handle duplicate validation
+      return false
+    }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     // Validation for new product - check if code already exists
-    if (!product && checkProductCodeExists(formData.Code)) {
-      window.Swal.fire({
-        title: "Code Already Exists!",
-        text: `Product code "${formData.Code}" already exists. Please use a different code.`,
-        icon: "error",
-        confirmButtonColor: "#8b5cf6",
-      })
-      return
+    if (!product) {
+      const codeExists = await checkProductCodeExists(formData.Code)
+      if (codeExists) {
+        window.Swal.fire({
+          title: "Code Already Exists!",
+          text: `Product code "${formData.Code}" already exists. Please use a different code.`,
+          icon: "error",
+          confirmButtonColor: "#8b5cf6",
+        })
+        return
+      }
     }
 
     onSave(formData)
