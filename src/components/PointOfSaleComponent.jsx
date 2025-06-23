@@ -52,10 +52,34 @@ const PointOfSaleComponent = () => {
     }
   }
 
-  const loadSalespersons = () => {
-    const savedSalespersons = localStorage.getItem("salespersons")
-    if (savedSalespersons) {
-      setSalespersons(JSON.parse(savedSalespersons))
+  const loadSalespersons = async () => {
+    try {
+      const response = await fetch("https://localhost:7078/api/salespersons", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Transform backend data to match frontend format
+      const transformedSalespersons = data.map((salesperson) => ({
+        SalespersonID: salesperson.salespersonID,
+        Name: salesperson.name,
+        Code: salesperson.code,
+        EnteredDate: salesperson.enteredDate,
+        UpdatedDate: salesperson.updatedDate,
+      }))
+
+      setSalespersons(transformedSalespersons)
+    } catch (error) {
+      console.error("Error loading salespersons:", error)
+      setSalespersons([])
     }
   }
 
@@ -121,11 +145,11 @@ const PointOfSaleComponent = () => {
           return
         }
 
-        // Prepare update data
+        // Prepare update data - use original saleDate as creationDate
         const updateData = {
           saleId: originalSaleId,
           total: saleData.Total,
-          creationDate: originalRecord.creationDate,
+          creationDate: originalRecord.saleDate, // Use saleDate from original record
           salespersonId: saleData.SalespersonId,
           comments: saleData.Comments,
           saleItems: saleData.SaleItems.map((item) => ({
@@ -245,8 +269,9 @@ const PointOfSaleComponent = () => {
       // Transform the detailed record to match frontend format
       const transformedRecord = {
         SaleId: detailedRecord.saleId,
-        CreationDate: detailedRecord.creationDate,
-        UpdatedDate: detailedRecord.updatedDate,
+        SaleDate: detailedRecord.saleDate, // Use saleDate from API response
+        CreationDate: detailedRecord.saleDate, // Use saleDate as creation date
+        UpdatedDate: detailedRecord.editDate,
         SalespersonId: detailedRecord.salespersonId,
         Total: detailedRecord.total,
         Comments: detailedRecord.comments,
@@ -322,6 +347,9 @@ const PointOfSaleComponent = () => {
         }))
       }
 
+      // Get salesperson name
+      const salespersonName = getSalespersonName(detailedRecord.salespersonId)
+
       // Build items table if sale items exist
       let itemsTable = ""
       if (detailedRecord.saleItems && Array.isArray(detailedRecord.saleItems) && detailedRecord.saleItems.length > 0) {
@@ -387,17 +415,17 @@ const PointOfSaleComponent = () => {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
             <div>
               <strong style="color: #8b5cf6;">📅 Created:</strong><br>
-              <span style="color: #333;">${detailedRecord.creationDate !== "0001-01-01T00:00:00" ? new Date(detailedRecord.creationDate).toLocaleString() : "Not available"}</span>
+              <span style="color: #333;">${detailedRecord.saleDate ? new Date(detailedRecord.saleDate).toLocaleString() : "Not available"}</span>
             </div>
             <div>
               <strong style="color: #8b5cf6;">🔄 Updated:</strong><br>
-              <span style="color: #333;">${detailedRecord.updatedDate ? new Date(detailedRecord.updatedDate).toLocaleString() : "Never"}</span>
+              <span style="color: #333;">${detailedRecord.editDate ? new Date(detailedRecord.editDate).toLocaleString() : "Never"}</span>
             </div>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
             <div>
-              <strong style="color: #8b5cf6;">👤 Salesperson ID:</strong><br>
-              <span style="color: #333;">${detailedRecord.salespersonId}</span>
+              <strong style="color: #8b5cf6;">👤 Salesperson:</strong><br>
+              <span style="color: #333;">${salespersonName}</span>
             </div>
             <div>
               <strong style="color: #8b5cf6;">💰 Total:</strong><br>

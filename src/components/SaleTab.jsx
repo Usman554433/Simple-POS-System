@@ -32,7 +32,7 @@ const LiveDateTime = () => {
   return `${month}/${day}/${year} ${displayHours}:${minutes}:${seconds} ${ampm}`
 }
 
-// Static DateTime component for editing mode (shows creation time)
+// Static DateTime component for editing mode (shows creation or updated time)
 const StaticDateTime = ({ dateTime }) => {
   if (!dateTime) return ""
 
@@ -407,15 +407,15 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   }
 
   const handleSaveRecord = () => {
-    // if (!selectedSalesperson) {
-    //   Swal.fire({
-    //     title: "Error!",
-    //     text: "Please select a salesperson",
-    //     icon: "error",
-    //     confirmButtonColor: "#8b5cf6",
-    //   })
-    //   return
-    // }
+    if (!selectedSalesperson) {
+      Swal.fire({
+        title: "Error!",
+        text: "Please select a salesperson",
+        icon: "error",
+        confirmButtonColor: "#8b5cf6",
+      })
+      return
+    }
 
     if (saleItems.length === 0) {
       Swal.fire({
@@ -554,16 +554,19 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
               <>
                 <div className="form-control d-flex align-items-center justify-content-between bg-light">
                   <span className="fw-bold text-info">
-                    <StaticDateTime dateTime={loadedSaleData?.CreationDate || loadedSaleData?.SaleDate} />
+                    <StaticDateTime dateTime={loadedSaleData?.SaleDate} />
                   </span>
+                  <small className="text-muted ms-2">(Record Creation Time)</small>
                 </div>
                 <span className="input-group-text">
-                  <i className="fas fa-calendar-alt"></i>
+                  <i className="fas fa-calendar-check text-info"></i>
                 </span>
               </>
             )}
           </div>
-          <small className="text-muted">Pakistan Time (UTC+5)</small>
+          <small className="text-muted">
+            {!editingSaleId ? "Pakistan Time (UTC+5) - Live" : "Pakistan Time (UTC+5) - When Record Was Created"}
+          </small>
 
           {/* Custom date picker for non-editing mode */}
           {!editingSaleId && showDatePicker && (
