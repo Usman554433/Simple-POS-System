@@ -68,7 +68,7 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
   const dropdownRef = useRef(null)
 
   useEffect(() => {
-    // Load data from localStorage
+    // Load data from backend
     loadSalespersons()
     loadProducts()
   }, [])
@@ -153,10 +153,35 @@ const SaleTab = ({ onSaveSale, loadedSaleData, editingSaleId, onClearEditing, on
     }
   }
 
-  const loadSalespersons = () => {
-    const saved = localStorage.getItem("salespersons")
-    if (saved) {
-      setSalespersons(JSON.parse(saved))
+  const loadSalespersons = async () => {
+    try {
+      const response = await fetch("https://localhost:7078/api/salespersons", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Transform backend data to match frontend format
+      const transformedSalespersons = data.map((salesperson) => ({
+        SalespersonID: salesperson.salespersonID,
+        Name: salesperson.name,
+        Code: salesperson.code,
+        EnteredDate: salesperson.enteredDate,
+        UpdatedDate: salesperson.updatedDate,
+      }))
+
+      setSalespersons(transformedSalespersons)
+    } catch (error) {
+      console.error("Error loading salespersons:", error)
+      // Keep salespersons as empty array if there's an error
+      setSalespersons([])
     }
   }
 

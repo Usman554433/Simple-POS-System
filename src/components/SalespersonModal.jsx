@@ -42,23 +42,44 @@ const SalespersonModal = ({ show, onHide, salesperson, onSave }) => {
     }
   }, [show, onHide])
 
-  const checkSalespersonCodeExists = (code) => {
-    const savedSalespersons = JSON.parse(localStorage.getItem("salespersons") || "[]")
-    return savedSalespersons.some((s) => s.Code.toLowerCase() === code.toLowerCase())
+  const checkSalespersonCodeExists = async (code) => {
+    try {
+      const response = await fetch("https://localhost:7078/api/salespersons", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const salespersons = await response.json()
+      return salespersons.some((s) => s.code.toLowerCase() === code.toLowerCase())
+    } catch (error) {
+      console.error("Error checking salesperson code:", error)
+      // If there's an error checking, allow the submission to proceed
+      // The backend will handle duplicate validation
+      return false
+    }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     // Validation for new salesperson - check if code already exists
-    if (!salesperson && checkSalespersonCodeExists(formData.Code)) {
-      window.Swal.fire({
-        title: "Code Already Exists!",
-        text: `Salesperson code "${formData.Code}" already exists. Please use a different code.`,
-        icon: "error",
-        confirmButtonColor: "#8b5cf6",
-      })
-      return
+    if (!salesperson) {
+      const codeExists = await checkSalespersonCodeExists(formData.Code)
+      if (codeExists) {
+        window.Swal.fire({
+          title: "Code Already Exists!",
+          text: `Salesperson code "${formData.Code}" already exists. Please use a different code.`,
+          icon: "error",
+          confirmButtonColor: "#8b5cf6",
+        })
+        return
+      }
     }
 
     onSave(formData)
