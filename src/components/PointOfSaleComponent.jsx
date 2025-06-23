@@ -68,11 +68,14 @@ const PointOfSaleComponent = () => {
     try {
       if (isEditing && originalSaleId) {
         // Get the original record details first
-        const detailResponse = await fetch(`https://localhost:7078/api/salerecords/${originalSaleId}`, {
-          method: "GET",
+        const detailResponse = await fetch("https://localhost:7078/api/salerecords/id", {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            Id: originalSaleId,
+          }),
         })
 
         if (!detailResponse.ok) {
@@ -167,11 +170,14 @@ const PointOfSaleComponent = () => {
   const loadSaleRecord = async (saleRecord) => {
     try {
       // Fetch detailed record from backend
-      const response = await fetch(`https://localhost:7078/api/salerecords/${saleRecord.SaleId}`, {
-        method: "GET",
+      const response = await fetch("https://localhost:7078/api/salerecords/id", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          Id: saleRecord.SaleId,
+        }),
       })
 
       if (!response.ok) {
@@ -207,18 +213,19 @@ const PointOfSaleComponent = () => {
         SalespersonId: detailedRecord.salespersonId,
         Total: detailedRecord.total,
         Comments: detailedRecord.comments,
-        SaleItems: [], // Will be populated from the backend if available
+        SaleItems: [],
       }
 
-      // If the backend provides sale items, transform them
+      // Transform sale items and enrich with product details
       if (detailedRecord.saleItems && Array.isArray(detailedRecord.saleItems)) {
         transformedRecord.SaleItems = detailedRecord.saleItems.map((item) => {
-          // Find product details
+          // Find product details from products list
           const product = products.find((p) => p.ProductId === item.productId)
+
           return {
             ProductId: item.productId,
-            Name: product ? product.Name : `Product ID: ${item.productId}`,
-            Code: product ? product.Code : `P${item.productId}`,
+            Name: item.name || (product ? product.Name : `Product ID: ${item.productId}`),
+            Code: item.code || (product ? product.Code : `P${item.productId}`),
             RetailPrice: item.retailPrice,
             Quantity: item.quantity,
             Discount: item.discount,
@@ -243,18 +250,21 @@ const PointOfSaleComponent = () => {
   const viewSaleRecord = async (saleRecord) => {
     try {
       // Fetch detailed record from backend
-      const response = await fetch(`https://localhost:7078/api/salerecords/${saleRecord.SaleId}`, {
-        method: "GET",
+      const detailResponse = await fetch("https://localhost:7078/api/salerecords/id", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          Id: saleRecord.SaleId,
+        }),
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      if (!detailResponse.ok) {
+        throw new Error(`HTTP error! status: ${detailResponse.status}`)
       }
 
-      const detailedRecord = await response.json()
+      const detailedRecord = await detailResponse.json()
 
       // Load products to get product details for sale items
       const productsResponse = await fetch("https://localhost:7078/api/products", {
@@ -295,8 +305,8 @@ const PointOfSaleComponent = () => {
             ${detailedRecord.saleItems
               .map((item, index) => {
                 const product = products.find((p) => p.ProductId === item.productId)
-                const productName = product ? product.Name : `Product ID: ${item.productId}`
-                const productCode = product ? product.Code : `P${item.productId}`
+                const productName = item.name || (product ? product.Name : `Product ID: ${item.productId}`)
+                const productCode = item.code || (product ? product.Code : `P${item.productId}`)
 
                 const subtotal = item.retailPrice * item.quantity
                 const discountAmount = (subtotal * item.discount) / 100
@@ -340,7 +350,7 @@ const PointOfSaleComponent = () => {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
             <div>
               <strong style="color: #8b5cf6;">📅 Created:</strong><br>
-              <span style="color: #333;">${new Date(detailedRecord.creationDate).toLocaleString()}</span>
+              <span style="color: #333;">${detailedRecord.creationDate !== "0001-01-01T00:00:00" ? new Date(detailedRecord.creationDate).toLocaleString() : "Not available"}</span>
             </div>
             <div>
               <strong style="color: #8b5cf6;">🔄 Updated:</strong><br>
