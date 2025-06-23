@@ -84,6 +84,43 @@ const PointOfSaleComponent = () => {
 
         const originalRecord = await detailResponse.json()
 
+        // Check if any changes were made
+        const originalSaleItems = originalRecord.saleItems || []
+        const newSaleItems = saleData.SaleItems || []
+
+        // Compare basic fields
+        const basicFieldsChanged =
+          originalRecord.total !== saleData.Total ||
+          originalRecord.salespersonId !== saleData.SalespersonId ||
+          (originalRecord.comments || "") !== (saleData.Comments || "")
+
+        // Compare sale items
+        const saleItemsChanged =
+          originalSaleItems.length !== newSaleItems.length ||
+          originalSaleItems.some((originalItem, index) => {
+            const newItem = newSaleItems[index]
+            if (!newItem) return true
+
+            return (
+              originalItem.productId !== newItem.ProductId ||
+              originalItem.retailPrice !== newItem.RetailPrice ||
+              originalItem.quantity !== newItem.Quantity ||
+              originalItem.discount !== newItem.Discount
+            )
+          })
+
+        const hasChanges = basicFieldsChanged || saleItemsChanged
+
+        if (!hasChanges) {
+          Swal.fire({
+            title: "No Changes Made!",
+            text: "No changes were detected. The sale record remains unchanged.",
+            icon: "info",
+            confirmButtonColor: "#8b5cf6",
+          })
+          return
+        }
+
         // Prepare update data
         const updateData = {
           saleId: originalSaleId,

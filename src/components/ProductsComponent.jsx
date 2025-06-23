@@ -126,6 +126,25 @@ const ProductsComponent = () => {
 
     try {
       if (editingProduct) {
+        // Check if any changes were made
+        const hasChanges =
+          editingProduct.Name !== productData.Name ||
+          editingProduct.ImageURL !== productData.ImageURL ||
+          Number.parseFloat(editingProduct.CostPrice) !== Number.parseFloat(productData.CostPrice) ||
+          Number.parseFloat(editingProduct.RetailPrice) !== Number.parseFloat(productData.RetailPrice)
+
+        if (!hasChanges) {
+          setLoading(false)
+          setShowModal(false)
+          Swal.fire({
+            title: "No Changes Made!",
+            text: "No changes were detected. The product remains unchanged.",
+            icon: "info",
+            confirmButtonColor: "#8b5cf6",
+          })
+          return
+        }
+
         // Update existing product
         const updateData = {
           ProductId: editingProduct.ProductId,
@@ -169,7 +188,7 @@ const ProductsComponent = () => {
           confirmButtonColor: "#8b5cf6",
         })
       } else {
-        // Add new product
+        // Add new product (existing code remains the same)
         const addData = {
           Name: productData.Name,
           Code: productData.Code,

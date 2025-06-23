@@ -123,6 +123,21 @@ const SalespersonComponent = () => {
 
     try {
       if (editingSalesperson) {
+        // Check if any changes were made
+        const hasChanges = editingSalesperson.Name !== salespersonData.Name
+
+        if (!hasChanges) {
+          setLoading(false)
+          setShowModal(false)
+          Swal.fire({
+            title: "No Changes Made!",
+            text: "No changes were detected. The salesperson remains unchanged.",
+            icon: "info",
+            confirmButtonColor: "#8b5cf6",
+          })
+          return
+        }
+
         // Update existing salesperson
         const updateData = {
           SalespersonID: editingSalesperson.SalespersonID,
@@ -161,7 +176,7 @@ const SalespersonComponent = () => {
           confirmButtonColor: "#8b5cf6",
         })
       } else {
-        // Add new salesperson
+        // Add new salesperson (existing code remains the same)
         const addData = {
           Name: salespersonData.Name,
           Code: salespersonData.Code,
