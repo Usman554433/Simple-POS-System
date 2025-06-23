@@ -419,7 +419,7 @@ const PointOfSaleComponent = () => {
             </div>
             <div>
               <strong style="color: #8b5cf6;">🔄 Updated:</strong><br>
-              <span style="color: #333;">${detailedRecord.editDate ? new Date(detailedRecord.editDate).toLocaleString() : "Never"}</span>
+              <span style="color: #333;">${detailedRecord.updatedDate && detailedRecord.updatedDate !== detailedRecord.saleDate ? new Date(detailedRecord.updatedDate).toLocaleString() : "Never updated"}</span>
             </div>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
