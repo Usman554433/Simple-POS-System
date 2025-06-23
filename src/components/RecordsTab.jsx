@@ -85,10 +85,6 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
         aValue = a.Total
         bValue = b.Total
         break
-      case "ItemsCount":
-        aValue = a.SaleItems ? a.SaleItems.length : 0
-        bValue = b.SaleItems ? b.SaleItems.length : 0
-        break
       case "Comments":
         aValue = (a.Comments || "").toLowerCase()
         bValue = (b.Comments || "").toLowerCase()
@@ -151,7 +147,6 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
     { key: "UpdatedDate", label: "Updated At" },
     { key: "Salesperson", label: "Salesperson" },
     { key: "Total", label: "Total" },
-    { key: "ItemsCount", label: "Items Count" },
     { key: "Comments", label: "Comments" },
   ]
 
@@ -207,7 +202,7 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
           <tbody>
             {currentRecords.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center">
+                <td colSpan="7" className="text-center">
                   {salesRecords.length === 0 ? "No sales records found" : "No records match your search"}
                 </td>
               </tr>
@@ -241,7 +236,6 @@ const RecordsTab = ({ salesRecords, onLoadRecord, onViewRecord, onDeleteRecord }
                   </td>
                   <td>{getSalespersonName(record)}</td>
                   <td>${record.Total.toFixed(2)}</td>
-                  <td>-</td> {/* Items count not available in list view */}
                   <td>{record.Comments || "-"}</td>
                   <td>
                     <div className="btn-group" role="group">

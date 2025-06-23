@@ -8,10 +8,12 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(8)
   const [isLoading, setIsLoading] = useState(false)
+  const [addedProducts, setAddedProducts] = useState(new Set()) // Track added products for visual feedback
 
   useEffect(() => {
     if (show) {
       loadProducts()
+      setAddedProducts(new Set()) // Reset added products when modal opens
     }
   }, [show])
 
@@ -92,7 +94,34 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
 
   const handleProductSelect = (product) => {
     onSelectProduct(product)
-    onHide()
+    // Add to the set of added products for visual feedback
+    setAddedProducts((prev) => new Set([...prev, product.ProductId]))
+
+    // Show brief success feedback
+    const button = document.querySelector(`[data-product-id="${product.ProductId}"]`)
+    if (button) {
+      const originalText = button.innerHTML
+      button.innerHTML = '<i class="fas fa-check me-1"></i>Added!'
+      button.classList.remove("btn-primary")
+      button.classList.add("btn-success")
+
+      setTimeout(() => {
+        button.innerHTML = originalText
+        button.classList.remove("btn-success")
+        button.classList.add("btn-primary")
+      }, 1000)
+    }
+
+    // DON'T close the modal - keep it open for multiple selections
+    // onHide() - REMOVED
+  }
+
+  const handleRowClick = (product, event) => {
+    // Prevent row click when clicking on the Add button
+    if (event.target.closest(".btn")) {
+      return
+    }
+    handleProductSelect(product)
   }
 
   const renderPagination = () => {
@@ -158,6 +187,15 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
                   </div>
                 </div>
 
+                {/* Instructions for user */}
+                <div className="alert alert-info py-2 mb-3">
+                  <small>
+                    <i className="fas fa-info-circle me-1"></i>
+                    <strong>Tip:</strong> Click anywhere on a product row to add it to your sale. Modal stays open for
+                    multiple selections.
+                  </small>
+                </div>
+
                 {currentProducts.length === 0 ? (
                   <div className="text-center py-4">
                     <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
@@ -186,8 +224,19 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
                           <tr
                             key={product.ProductId}
                             style={{ cursor: "pointer" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f8f9fa")}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+                            className={`${addedProducts.has(product.ProductId) ? "table-success" : ""}`}
+                            onClick={(e) => handleRowClick(product, e)}
+                            onMouseEnter={(e) => {
+                              if (!addedProducts.has(product.ProductId)) {
+                                e.currentTarget.style.backgroundColor = "#f8f9fa"
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!addedProducts.has(product.ProductId)) {
+                                e.currentTarget.style.backgroundColor = ""
+                              }
+                            }}
+                            title="Click anywhere on this row to add product"
                           >
                             <td>
                               {product.ImageURL ? (
@@ -218,6 +267,9 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
                             </td>
                             <td>
                               <strong>{product.Name}</strong>
+                              {addedProducts.has(product.ProductId) && (
+                                <span className="badge bg-success ms-2 small">Added</span>
+                              )}
                             </td>
                             <td>
                               <span className="badge bg-secondary">{product.Code}</span>
@@ -234,7 +286,11 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
                             <td>
                               <button
                                 className="btn btn-sm btn-primary"
-                                onClick={() => handleProductSelect(product)}
+                                onClick={(e) => {
+                                  e.stopPropagation() // Prevent row click
+                                  handleProductSelect(product)
+                                }}
+                                data-product-id={product.ProductId}
                                 title="Add to Sale"
                               >
                                 <i className="fas fa-plus me-1"></i>
@@ -287,10 +343,16 @@ const ProductListModal = ({ show, onHide, onSelectProduct }) => {
             )}
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onHide}>
-              <i className="fas fa-times me-2"></i>
-              Close
-            </button>
+            <div className="d-flex justify-content-between align-items-center w-100">
+              <small className="text-muted">
+                <i className="fas fa-mouse-pointer me-1"></i>
+                Click any row to add • Modal stays open for multiple selections
+              </small>
+              <button type="button" className="btn btn-secondary" onClick={onHide}>
+                <i className="fas fa-times me-2"></i>
+                Close
+              </button>
+            </div>
           </div>
 
           {/* ESC key hint */}
